@@ -1,0 +1,60 @@
+{
+  "resourceType": "Questionnaire",
+  "url": "http://example.org/fhir/Questionnaire/general-intake",
+  "version": "1.0.0",
+  "name": "GeneralIntake",
+  "title": "General Intake",
+  "description": "General nurse intake questionnaire",
+  "status": "active",
+  "item": [
+    {
+      "linkId": "visit-reason",
+      "text": "Reason for visit",
+      "type": "text",
+      "required": true
+    },
+    {
+      "linkId": "current-medications",
+      "text": "Current medications",
+      "type": "text"
+    },
+    {
+      "linkId": "smoking-status",
+      "text": "What is your smoking status?",
+      "type": "choice",
+      "answerOption": [
+        {
+          "valueCoding": {
+            "system": "http://snomed.info/sct",
+            "code": "266919005",
+            "display": "Never smoked"
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "http://snomed.info/sct",
+            "code": "8517006",
+            "display": "Former smoker"
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "http://snomed.info/sct",
+            "code": "77176002",
+            "display": "Current smoker"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "pain-score",
+      "text": "Pain score from 0 to 10",
+      "type": "integer"
+    },
+    {
+      "linkId": "allergy-has",
+      "text": "Any known allergies?",
+      "type": "boolean"
+    }
+  ]
+}

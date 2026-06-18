@@ -1,0 +1,19 @@
+{
+  "resourceType": "Patient",
+  "identifier": [
+    {
+      "system": "http://example.org/fhir/mrn",
+      "value": "MRN1001"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "given": ["Jane"],
+      "family": "Doe",
+      "text": "Jane Doe"
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1980-01-01"
+}

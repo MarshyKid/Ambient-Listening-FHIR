@@ -1,0 +1,102 @@
+from urllib.parse import urlparse
+
+from app.fhir.constants import SUPPORTED_QUESTIONNAIRE_ITEM_TYPES
+from app.schemas.questionnaires import ChoiceOption, QuestionnaireDetail, QuestionnaireItem, QuestionnaireSummary
+
+
+def derive_slug(url: str | None) -> str:
+    if not url:
+        raise ValueError("Questionnaire.url is required.")
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/")
+    slug = path.split("/")[-1] if path else ""
+    if not slug:
+        raise ValueError(f"Could not derive questionnaire slug from URL: {url}")
+    return slug
+
+
+def require_questionnaire_url_version(resource: dict) -> tuple[str, str]:
+    url = resource.get("url")
+    version = resource.get("version")
+    if not url:
+        raise ValueError("Questionnaire.url is required.")
+    if not version:
+        raise ValueError("Questionnaire.version is required.")
+    return str(url), str(version)
+
+
+def map_questionnaire_summary(resource: dict, item_count: int | None = None) -> QuestionnaireSummary:
+    fhir_id = _require_id(resource)
+    url, version = require_questionnaire_url_version(resource)
+    return QuestionnaireSummary(
+        id=fhir_id,
+        fhirId=fhir_id,
+        slug=derive_slug(url),
+        url=url,
+        version=version,
+        title=str(resource.get("title") or resource.get("name") or fhir_id),
+        description=resource.get("description"),
+        status=str(resource.get("status") or "unknown"),
+        itemCount=item_count if item_count is not None else len(resource.get("item") or []),
+    )
+
+
+def map_questionnaire_detail(resource: dict) -> QuestionnaireDetail:
+    summary = map_questionnaire_summary(resource, item_count=len(resource.get("item") or []))
+    return QuestionnaireDetail(
+        id=summary.id,
+        fhirId=summary.fhirId,
+        slug=summary.slug,
+        url=summary.url,
+        version=summary.version,
+        title=summary.title,
+        description=summary.description,
+        status=summary.status,
+        items=[map_questionnaire_item(item) for item in resource.get("item") or []],
+    )
+
+
+def map_questionnaire_item(item: dict) -> QuestionnaireItem:
+    item_type = item.get("type")
+    if item_type not in SUPPORTED_QUESTIONNAIRE_ITEM_TYPES:
+        raise ValueError(f"Unsupported Questionnaire item type for Phase 1/2: {item_type}")
+    return QuestionnaireItem(
+        linkId=str(item.get("linkId") or ""),
+        text=str(item.get("text") or item.get("linkId") or ""),
+        type=str(item_type),
+        options=_choice_options(item) if item_type == "choice" else None,
+    )
+
+
+def questionnaire_items_by_link_id(resource: dict) -> dict[str, dict]:
+    return {str(item.get("linkId")): item for item in resource.get("item") or [] if item.get("linkId")}
+
+
+def find_choice_coding(item: dict, system: str, code: str) -> dict | None:
+    for option in item.get("answerOption") or []:
+        coding = option.get("valueCoding") or {}
+        if coding.get("system") == system and coding.get("code") == code:
+            return {key: value for key, value in coding.items() if value is not None}
+    return None
+
+
+def _choice_options(item: dict) -> list[ChoiceOption] | None:
+    options: list[ChoiceOption] = []
+    for option in item.get("answerOption") or []:
+        coding = option.get("valueCoding") or {}
+        if coding.get("system") and coding.get("code"):
+            options.append(
+                ChoiceOption(
+                    system=str(coding["system"]),
+                    code=str(coding["code"]),
+                    display=str(coding.get("display") or coding["code"]),
+                )
+            )
+    return options or None
+
+
+def _require_id(resource: dict) -> str:
+    fhir_id = resource.get("id")
+    if not fhir_id:
+        raise ValueError("FHIR Questionnaire is missing id.")
+    return str(fhir_id)

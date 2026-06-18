@@ -1,0 +1,55 @@
+{
+  "resourceType": "Questionnaire",
+  "url": "http://example.org/fhir/Questionnaire/pre-visit-screening",
+  "version": "1.0.0",
+  "name": "PreVisitScreening",
+  "title": "Pre-Visit Screening",
+  "description": "Quick screening before a scheduled clinical encounter.",
+  "status": "active",
+  "item": [
+    {
+      "linkId": "visit-reason",
+      "text": "Reason for visit",
+      "type": "text",
+      "required": true
+    },
+    {
+      "linkId": "fever",
+      "text": "Fever in the last 48 hours?",
+      "type": "boolean"
+    },
+    {
+      "linkId": "pain-score",
+      "text": "Pain score from 0 to 10",
+      "type": "integer"
+    },
+    {
+      "linkId": "smoking-status",
+      "text": "Smoking status",
+      "type": "choice",
+      "answerOption": [
+        {
+          "valueCoding": {
+            "system": "http://snomed.info/sct",
+            "code": "266919005",
+            "display": "Never smoked"
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "http://snomed.info/sct",
+            "code": "8517006",
+            "display": "Former smoker"
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "http://snomed.info/sct",
+            "code": "77176002",
+            "display": "Current smoker"
+          }
+        }
+      ]
+    }
+  ]
+}

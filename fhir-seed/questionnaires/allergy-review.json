@@ -1,0 +1,32 @@
+{
+  "resourceType": "Questionnaire",
+  "url": "http://example.org/fhir/Questionnaire/allergy-review",
+  "version": "1.0.0",
+  "name": "AllergyReview",
+  "title": "Allergy Review",
+  "description": "Focused review of medication and environmental allergies.",
+  "status": "active",
+  "item": [
+    {
+      "linkId": "allergy-has",
+      "text": "Any known allergies?",
+      "type": "boolean",
+      "required": true
+    },
+    {
+      "linkId": "allergy-substance",
+      "text": "Allergy substance",
+      "type": "string"
+    },
+    {
+      "linkId": "allergy-reaction",
+      "text": "Reaction or symptom",
+      "type": "string"
+    },
+    {
+      "linkId": "allergy-onset",
+      "text": "Approximate onset date",
+      "type": "date"
+    }
+  ]
+}

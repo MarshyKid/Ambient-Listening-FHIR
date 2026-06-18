@@ -1,0 +1,18 @@
+{
+  "resourceType": "Practitioner",
+  "identifier": [
+    {
+      "system": "http://example.org/staff-id",
+      "value": "nurse-1"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "given": ["Nora"],
+      "family": "Nurse",
+      "text": "Nora Nurse"
+    }
+  ],
+  "active": true
+}

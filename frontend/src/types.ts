@@ -1,0 +1,218 @@
+export type Gender = "female" | "male" | "other" | "unknown";
+
+export interface PatientSummary {
+  id: string;
+  mrn: string;
+  name: string;
+  gender: Gender;
+  birthDate: string;
+}
+
+export interface FhirPatient {
+  resourceType: "Patient";
+  id: string;
+  identifier: Array<{
+    system: string;
+    value: string;
+  }>;
+  name: Array<{
+    use?: string;
+    family?: string;
+    given?: string[];
+    text?: string;
+  }>;
+  gender: Gender;
+  birthDate: string;
+}
+
+export interface FhirAnswerOption {
+  valueCoding: {
+    system: string;
+    code: string;
+    display: string;
+  };
+}
+
+export interface FhirQuestionnaireItem {
+  linkId: string;
+  text: string;
+  type: QuestionnaireItemType;
+  required?: boolean;
+  answerOption?: FhirAnswerOption[];
+}
+
+export interface FhirQuestionnaire {
+  resourceType: "Questionnaire";
+  id: string;
+  url: string;
+  version: string;
+  title: string;
+  description: string;
+  status: "draft" | "active" | "retired";
+  item: FhirQuestionnaireItem[];
+}
+
+export type FhirSearchResource = FhirPatient | FhirQuestionnaire;
+
+export interface FhirBundleEntry {
+  fullUrl: string;
+  resource: FhirSearchResource;
+  search: {
+    mode: "match";
+  };
+}
+
+export interface FhirBundle {
+  resourceType: "Bundle";
+  type: "searchset";
+  total: number;
+  link: Array<{
+    relation: "self";
+    url: string;
+  }>;
+  entry?: FhirBundleEntry[];
+}
+
+export interface PatientQueryResult {
+  requestUrl: string;
+  status: number;
+  statusText: string;
+  bundle: FhirBundle;
+  patients: PatientSummary[];
+  error?: string;
+}
+
+export interface QuestionnaireQueryResult {
+  requestUrl: string;
+  status: number;
+  statusText: string;
+  bundle: FhirBundle;
+  questionnaires: QuestionnaireSummary[];
+  error?: string;
+}
+
+export type FhirQuestionnaireResponseAnswer =
+  | { valueString: string }
+  | { valueBoolean: boolean }
+  | { valueInteger: number }
+  | { valueDate: string }
+  | { valueCoding: ChoiceOption };
+
+export interface FhirQuestionnaireResponseItem {
+  linkId: string;
+  text: string;
+  answer: FhirQuestionnaireResponseAnswer[];
+}
+
+export interface FhirQuestionnaireResponse {
+  resourceType: "QuestionnaireResponse";
+  status: "in-progress" | "completed";
+  questionnaire: string;
+  subject: {
+    reference: string;
+    display: string;
+  };
+  authored: string;
+  item: FhirQuestionnaireResponseItem[];
+}
+
+export interface QuestionnaireResponsePreviewResult {
+  requestUrl: string;
+  method: "POST";
+  statusText: "Preview only";
+  answeredItemCount: number;
+  resource: FhirQuestionnaireResponse;
+}
+
+export interface CreatePatientInput {
+  mrn: string;
+  givenName: string;
+  familyName: string;
+  gender: Gender;
+  birthDate: string;
+}
+
+export type QuestionnaireItemType = "string" | "text" | "boolean" | "choice" | "integer" | "date";
+
+export interface ChoiceOption {
+  system: string;
+  code: string;
+  display: string;
+}
+
+export interface QuestionnaireItem {
+  linkId: string;
+  text: string;
+  type: QuestionnaireItemType;
+  required?: boolean;
+  options?: ChoiceOption[];
+}
+
+export interface QuestionnaireSummary {
+  id: string;
+  url: string;
+  version: string;
+  title: string;
+  description: string;
+  status: "draft" | "active" | "retired";
+  itemCount: number;
+}
+
+export interface Questionnaire extends Omit<QuestionnaireSummary, "itemCount"> {
+  items: QuestionnaireItem[];
+}
+
+export type ReviewStatus = "accepted" | "rejected" | "unanswered" | "needs-review";
+
+export type ExtractedValue = string | number | boolean | ChoiceOption | null;
+
+export interface ExtractedAnswer {
+  linkId: string;
+  questionText: string;
+  itemType: QuestionnaireItemType;
+  value: ExtractedValue;
+  confidence: number;
+  evidence: string;
+  status: ReviewStatus;
+}
+
+export interface ClinicalSuggestion {
+  id: string;
+  resourceType: "AllergyIntolerance" | "Condition" | "MedicationStatement";
+  summary: string;
+  confidence: number;
+  evidence: string;
+  fields: Record<string, string>;
+  accepted: boolean;
+}
+
+export interface ExtractionResult {
+  answers: ExtractedAnswer[];
+  unanswered: ExtractedAnswer[];
+  clinicalSuggestions: ClinicalSuggestion[];
+}
+
+export interface SavePayload {
+  patientId: string;
+  questionnaireId: string;
+  answers: ExtractedAnswer[];
+  clinicalSuggestions: ClinicalSuggestion[];
+}
+
+export interface CreatedResource {
+  resourceType: string;
+  id: string;
+}
+
+export interface SaveResult {
+  encounterId: string;
+  questionnaireResponseId: string;
+  createdResources: CreatedResource[];
+}
+
+export interface SampleTranscript {
+  id: string;
+  label: string;
+  questionnaireId?: string;
+  transcript: string;
+}

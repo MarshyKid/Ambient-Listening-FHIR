@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import type { CreatePatientInput, Gender, PatientSummary } from "../types";
-import { createPatient } from "../mock/mockApi";
+import { createPatient } from "../api/patients";
 
 interface CreatePatientModalProps {
   onClose: () => void;
@@ -45,6 +45,8 @@ export default function CreatePatientModal({ onClose, onCreated }: CreatePatient
     try {
       const patient = await createPatient(form);
       onCreated(patient);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Patient creation failed.");
     } finally {
       setSaving(false);
     }

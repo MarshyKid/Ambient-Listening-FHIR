@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PatientQueryResult, PatientSummary } from "../types";
-import { queryPatientsFhir } from "../mock/mockApi";
+import { queryPatientsFhir } from "../api/patients";
 import CreatePatientModal from "./CreatePatientModal";
 
 const defaultPatientRequestUrl = "http://localhost:8080/csp/healthshare/demo/fhir/r4/Patient?_count=10";
@@ -40,7 +40,7 @@ export default function PatientSelection({ selectedPatient, onSelectPatient, onC
 
   useEffect(() => {
     void runQuery(defaultPatientRequestUrl);
-    // Initial mock FHIR query only.
+    // Initial patient query only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

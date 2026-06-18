@@ -2,7 +2,7 @@ from fastapi import HTTPException
 
 from app.config import Settings
 from app.fhir.questionnaire_builder import build_questionnaire_resource
-from app.fhir.questionnaire_mapper import map_questionnaire_detail, map_questionnaire_summary
+from app.fhir.questionnaire_mapper import count_answerable_items, map_questionnaire_detail, map_questionnaire_summary
 from app.schemas.questionnaires import CreateQuestionnaireRequest, CreateQuestionnaireResponse, QuestionnaireDetailResult, QuestionnaireQueryResult
 from app.services.fhir_client import FhirClient, FhirHttpError
 
@@ -13,6 +13,7 @@ class QuestionnaireService:
         self.settings = settings
 
     async def list_questionnaires(self, request_url: str | None = None) -> QuestionnaireQueryResult:
+        include_all_returned = bool(request_url)
         if request_url:
             response = await self.client.search_by_url(request_url, "Questionnaire")
         else:
@@ -26,10 +27,12 @@ class QuestionnaireService:
             resource = entry.get("resource") or {}
             if resource.get("resourceType") != "Questionnaire":
                 continue
-            if not str(resource.get("url") or "").startswith(prefix):
+            if not include_all_returned and not str(resource.get("url") or "").startswith(prefix):
                 continue
-            full_resource = await self.read_questionnaire_resource(str(resource.get("id")))
-            summaries.append(map_questionnaire_summary(full_resource, item_count=len(full_resource.get("item") or [])))
+            try:
+                summaries.append(map_questionnaire_summary(resource, item_count=count_answerable_items(resource.get("item") or [])))
+            except ValueError:
+                continue
 
         return QuestionnaireQueryResult(
             requestUrl=response.request_url,

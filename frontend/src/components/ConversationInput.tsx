@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { ExtractionResult, PatientSummary, Questionnaire, SampleTranscript } from "../types";
-import { extractTranscript, listSampleTranscripts } from "../mock/mockApi";
+import type { ExtractionResult, PatientSummary, Questionnaire, QuestionnaireItem, SampleTranscript } from "../types";
+import { listSampleTranscripts } from "../mock/mockApi";
+import { buildManualReviewResult, countGroups, flattenAnswerableItems } from "../utils/questionnaireItems";
 
 interface ConversationInputProps {
   patient: PatientSummary;
@@ -19,7 +20,8 @@ export default function ConversationInput({
 }: ConversationInputProps) {
   const [samples, setSamples] = useState<SampleTranscript[]>([]);
   const [sampleId, setSampleId] = useState("");
-  const [extracting, setExtracting] = useState(false);
+  const answerableItems = flattenAnswerableItems(questionnaire.items);
+  const groupCount = countGroups(questionnaire.items);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,18 +43,25 @@ export default function ConversationInput({
     }
   }
 
-  async function handleExtract() {
-    setExtracting(true);
-    try {
-      const result = await extractTranscript({
-        patientId: patient.id,
-        questionnaireId: questionnaire.id,
-        transcript
-      });
-      onExtracted(result);
-    } finally {
-      setExtracting(false);
-    }
+  function handleStartManualReview() {
+    onExtracted(buildManualReviewResult(questionnaire));
+  }
+
+  function renderQuestionnaireOutline(items: QuestionnaireItem[]) {
+    return (
+      <ul className="plain-list">
+        {items.map((item) => (
+          <li key={item.linkId}>
+            <strong>{item.text}</strong>{" "}
+            <span className="mono">
+              {item.type}
+              {item.required ? " · required" : ""}
+            </span>
+            {item.type === "group" && item.items && renderQuestionnaireOutline(item.items)}
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   return (
@@ -63,6 +72,15 @@ export default function ConversationInput({
           <h1>Conversation</h1>
         </div>
       </div>
+
+      <section className="card section-card">
+        <h2>{questionnaire.title}</h2>
+        <p className="muted">
+          Version {questionnaire.version} · {answerableItems.length} answerable items
+          {groupCount > 0 ? ` · ${groupCount} groups` : ""}
+        </p>
+        {renderQuestionnaireOutline(questionnaire.items)}
+      </section>
 
       <div className="card">
         <div className="sample-row">
@@ -92,8 +110,9 @@ export default function ConversationInput({
       </div>
 
       <div className="footer-actions">
-        <button className="primary-button" type="button" onClick={handleExtract} disabled={!transcript.trim() || extracting}>
-          {extracting ? "Extracting..." : "Extract Answers"}
+        {answerableItems.length === 0 && <span className="continue-helper">This questionnaire has no answerable items.</span>}
+        <button className="primary-button" type="button" onClick={handleStartManualReview} disabled={answerableItems.length === 0}>
+          Start Manual Review
         </button>
       </div>
     </section>

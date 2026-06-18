@@ -1,5 +1,6 @@
 import type { ChoiceOption, ClinicalSuggestion, ExtractedAnswer, ExtractedValue, Questionnaire, QuestionnaireItem } from "../types";
 import { smokingOptions } from "./mockQuestionnaires";
+import { flattenAnswerableItems } from "../utils/questionnaireItems";
 
 const lower = (value: string) => value.toLowerCase();
 
@@ -66,7 +67,7 @@ export function extractMock(questionnaire: Questionnaire, transcript: string) {
   const answers: ExtractedAnswer[] = [];
   const unansweredItems: ExtractedAnswer[] = [];
 
-  for (const item of questionnaire.items) {
+  for (const item of flattenAnswerableItems(questionnaire.items)) {
     let extracted: ExtractedAnswer | null = null;
 
     if (item.linkId === "allergy-has") {

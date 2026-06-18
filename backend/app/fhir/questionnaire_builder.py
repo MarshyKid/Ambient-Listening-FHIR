@@ -48,7 +48,21 @@ def _validate_request(request: CreateQuestionnaireRequest) -> None:
             raise ValueError(f"Questionnaire item text is required for {link_id}.")
         if item.type not in SUPPORTED_QUESTIONNAIRE_ITEM_TYPES:
             raise ValueError(f"Unsupported Questionnaire item type for Phase 1/2: {item.type}")
-        if item.type == "choice":
+        if item.type == "group":
+            if not item.items:
+                raise ValueError(f"Group item {link_id} requires at least one child item.")
+            if item.options:
+                raise ValueError(f"Group item {link_id} cannot include options.")
+            _validate_request(
+                CreateQuestionnaireRequest(
+                    slug=request.slug,
+                    version=request.version,
+                    title=request.title,
+                    status=request.status,
+                    items=item.items,
+                )
+            )
+        elif item.type == "choice":
             if not item.options:
                 raise ValueError(f"Choice item {link_id} requires at least one option.")
             for option in item.options:
@@ -71,6 +85,8 @@ def _build_item(item) -> dict:
             {"valueCoding": {"system": option.system.strip(), "code": option.code.strip(), "display": option.display.strip()}}
             for option in item.options or []
         ]
+    if item.type == "group":
+        resource_item["item"] = [_build_item(child) for child in item.items or []]
     return resource_item
 
 

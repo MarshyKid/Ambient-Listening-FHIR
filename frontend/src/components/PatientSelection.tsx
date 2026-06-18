@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { fhirBaseUrl } from "../api/config";
 import type { PatientQueryResult, PatientSummary } from "../types";
 import { queryPatientsFhir } from "../api/patients";
 import CreatePatientModal from "./CreatePatientModal";
 
-const defaultPatientRequestUrl = "http://localhost:8080/csp/healthshare/demo/fhir/r4/Patient?_count=10";
+const defaultPatientRequestUrl = `${fhirBaseUrl}/Patient?_count=10`;
 
 interface PatientSelectionProps {
   selectedPatient: PatientSummary | null;

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { fhirBaseUrl } from "../api/config";
 import type { Questionnaire, QuestionnaireQueryResult, QuestionnaireSummary } from "../types";
-import { getQuestionnaire, queryQuestionnairesFhir } from "../mock/mockApi";
+import { getQuestionnaire, queryQuestionnairesFhir } from "../api/questionnaires";
 
-const defaultQuestionnaireRequestUrl = "http://localhost:8080/csp/healthshare/demo/fhir/r4/Questionnaire?_count=10";
+const defaultQuestionnaireRequestUrl = `${fhirBaseUrl}/Questionnaire?_count=10`;
 
 interface QuestionnaireSelectionProps {
   selectedQuestionnaire: Questionnaire | null;
@@ -20,9 +21,11 @@ export default function QuestionnaireSelection({
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState("");
 
   async function runQuery(nextRequestUrl = requestUrl) {
     setLoading(true);
+    setSelectionError("");
     setQuestionnaires([]);
     const result = await queryQuestionnairesFhir(nextRequestUrl);
     setQueryResult(result);
@@ -32,15 +35,18 @@ export default function QuestionnaireSelection({
 
   useEffect(() => {
     void runQuery(defaultQuestionnaireRequestUrl);
-    // Initial mock FHIR query only.
+    // Initial questionnaire query only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSelect(id: string) {
     setSelectingId(id);
+    setSelectionError("");
     try {
       const questionnaire = await getQuestionnaire(id);
       onSelectQuestionnaire(questionnaire);
+    } catch (error) {
+      setSelectionError(error instanceof Error ? error.message : "Questionnaire selection failed.");
     } finally {
       setSelectingId(null);
     }
@@ -50,6 +56,9 @@ export default function QuestionnaireSelection({
   const statusText = queryResult
     ? `GET · ${queryResult.status} ${queryResult.statusText} · Bundle · ${queryResult.bundle.total} entries`
     : "GET · waiting";
+
+  const bundleEntryCount = queryResult?.bundle.entry?.length ?? 0;
+  const hasUnmappedBundleResources = !loading && bundleEntryCount > 0 && questionnaires.length === 0 && !queryResult?.error;
 
   return (
     <section className="screen">
@@ -72,7 +81,7 @@ export default function QuestionnaireSelection({
           </div>
         </label>
 
-        {queryResult?.error && <p className="query-error">{queryResult.error}</p>}
+        {(queryResult?.error || selectionError) && <p className="query-error">{queryResult?.error || selectionError}</p>}
 
         {queryResult && (
           <details className="raw-response">
@@ -92,6 +101,10 @@ export default function QuestionnaireSelection({
       <div className="card-grid">
         {loading ? (
           <p className="muted">Loading questionnaires...</p>
+        ) : hasUnmappedBundleResources ? (
+          <p className="muted">FHIR Bundle returned resources, but none could be mapped to questionnaire cards.</p>
+        ) : questionnaires.length === 0 ? (
+          <p className="muted">No questionnaires found.</p>
         ) : (
           questionnaires.map((questionnaire) => (
             <button

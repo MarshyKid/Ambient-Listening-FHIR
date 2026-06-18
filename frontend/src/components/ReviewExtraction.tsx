@@ -38,6 +38,12 @@ export default function ReviewExtraction({
     onAnswersChange(answers.map((answer) => (answer.linkId === linkId ? { ...answer, ...patch } : answer)));
   }
 
+  function hasReviewedValue(value: ExtractedValue) {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    return true;
+  }
+
   function handleValueChange(item: QuestionnaireItem, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const raw = event.target.value;
     let value: ExtractedValue = raw;
@@ -52,10 +58,20 @@ export default function ReviewExtraction({
       value = item.options?.find((option) => option.code === raw) ?? null;
     }
 
-    updateAnswer(item.linkId, { value });
+    const existing = byLinkId.get(item.linkId);
+    const nextStatus =
+      !existing || existing.status === "unanswered" || !hasReviewedValue(value)
+        ? hasReviewedValue(value)
+          ? "needs-review"
+          : "unanswered"
+        : existing.status;
+    updateAnswer(item.linkId, { value, status: nextStatus });
   }
 
   function renderInput(item: QuestionnaireItem, answer: ExtractedAnswer) {
+    if (item.type === "group") {
+      return null;
+    }
     if (item.type === "text") {
       return <textarea value={displayValue(answer.value)} onChange={(event) => handleValueChange(item, event)} />;
     }
@@ -83,10 +99,64 @@ export default function ReviewExtraction({
 
     return (
       <input
-        type={item.type === "date" ? "date" : item.type === "integer" ? "number" : "text"}
+        type={item.type === "date" ? "date" : item.type === "dateTime" ? "datetime-local" : item.type === "integer" ? "number" : "text"}
         value={displayValue(answer.value)}
         onChange={(event) => handleValueChange(item, event)}
       />
+    );
+  }
+
+  function renderQuestionnaireItem(item: QuestionnaireItem) {
+    if (item.type === "group") {
+      return (
+        <section key={item.linkId} className="review-group">
+          <div className="review-card-header">
+            <div>
+              <h2>{item.text}</h2>
+              <span className="link-id">{item.linkId}</span>
+            </div>
+          </div>
+          {(item.items ?? []).map(renderQuestionnaireItem)}
+        </section>
+      );
+    }
+
+    const answer = byLinkId.get(item.linkId);
+    if (!answer) return null;
+
+    return (
+      <article key={item.linkId} className={`review-card ${answer.status === "unanswered" ? "unanswered" : ""}`}>
+        <div className="review-card-header">
+          <div>
+            <h2>{item.text}</h2>
+            <span className="link-id">{item.linkId}</span>
+          </div>
+          <ConfidenceBadge confidence={answer.confidence} />
+        </div>
+
+        <label>
+          Reviewed value
+          {renderInput(item, answer)}
+        </label>
+
+        <div className="evidence">
+          <span>Evidence</span>
+          <q>{answer.evidence}</q>
+        </div>
+
+        <label>
+          Review status
+          <select
+            value={answer.status}
+            onChange={(event) => updateAnswer(answer.linkId, { status: event.target.value as ReviewStatus })}
+          >
+            <option value="accepted">Accepted</option>
+            <option value="needs-review">Needs review</option>
+            <option value="rejected">Rejected</option>
+            <option value="unanswered">Unanswered</option>
+          </select>
+        </label>
+      </article>
     );
   }
 
@@ -147,45 +217,7 @@ export default function ReviewExtraction({
       </div>
 
       <div className="review-layout">
-        {questionnaire.items.map((item) => {
-          const answer = byLinkId.get(item.linkId);
-          if (!answer) return null;
-
-          return (
-            <article key={item.linkId} className={`review-card ${answer.status === "unanswered" ? "unanswered" : ""}`}>
-              <div className="review-card-header">
-                <div>
-                  <h2>{item.text}</h2>
-                  <span className="link-id">{item.linkId}</span>
-                </div>
-                <ConfidenceBadge confidence={answer.confidence} />
-              </div>
-
-              <label>
-                Reviewed value
-                {renderInput(item, answer)}
-              </label>
-
-              <div className="evidence">
-                <span>Evidence</span>
-                <q>{answer.evidence}</q>
-              </div>
-
-              <label>
-                Review status
-                <select
-                  value={answer.status}
-                  onChange={(event) => updateAnswer(answer.linkId, { status: event.target.value as ReviewStatus })}
-                >
-                  <option value="accepted">Accepted</option>
-                  <option value="needs-review">Needs review</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="unanswered">Unanswered</option>
-                </select>
-              </label>
-            </article>
-          );
-        })}
+        {questionnaire.items.map(renderQuestionnaireItem)}
       </div>
 
       <section className="card section-card">

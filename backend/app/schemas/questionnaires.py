@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .common import ApiModel, FhirJson
 
 
@@ -12,6 +14,7 @@ class QuestionnaireItem(ApiModel):
     text: str
     type: str
     options: list[ChoiceOption] | None = None
+    items: list[QuestionnaireItem] | None = None
 
 
 class CreateQuestionnaireItem(ApiModel):
@@ -20,6 +23,7 @@ class CreateQuestionnaireItem(ApiModel):
     type: str
     required: bool | None = None
     options: list[ChoiceOption] | None = None
+    items: list[CreateQuestionnaireItem] | None = None
 
 
 class CreateQuestionnaireRequest(ApiModel):

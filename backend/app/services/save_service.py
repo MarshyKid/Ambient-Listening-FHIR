@@ -143,6 +143,8 @@ class SaveService:
             if item is None:
                 raise HTTPException(status_code=400, detail=f"Invalid linkId: {answer.linkId}")
             item_type = item.get("type")
+            if item_type == "group":
+                raise HTTPException(status_code=400, detail=f"Group item cannot be answered directly: {answer.linkId}")
             if answer.valueType != item_type:
                 raise HTTPException(
                     status_code=400,
@@ -169,6 +171,10 @@ class SaveService:
             if not isinstance(answer.value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", answer.value):
                 raise HTTPException(status_code=400, detail=f"Expected FHIR date value for {answer.linkId}.")
             return build_response_item(link_id=answer.linkId, text=text, value_key="valueDate", value=answer.value)
+        if answer.valueType == "dateTime":
+            if not isinstance(answer.value, str) or not _is_fhir_datetime(answer.value):
+                raise HTTPException(status_code=400, detail=f"Expected FHIR dateTime value for {answer.linkId}.")
+            return build_response_item(link_id=answer.linkId, text=text, value_key="valueDateTime", value=answer.value)
         if answer.valueType == "choice":
             coding = self._matched_choice(answer, item)
             return build_response_item(link_id=answer.linkId, text=text, value_key="valueCoding", value=coding)
@@ -245,3 +251,12 @@ def first_id(resources: list[CreatedResource], resource_type: str) -> str | None
 
 def _http_exception_message(exc: HTTPException) -> str:
     return exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+
+
+def _is_fhir_datetime(value: str) -> bool:
+    return bool(
+        re.fullmatch(
+            r"\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?",
+            value,
+        )
+    )

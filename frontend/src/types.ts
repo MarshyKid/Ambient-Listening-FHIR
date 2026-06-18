@@ -39,6 +39,7 @@ export interface FhirQuestionnaireItem {
   type: QuestionnaireItemType;
   required?: boolean;
   answerOption?: FhirAnswerOption[];
+  item?: FhirQuestionnaireItem[];
 }
 
 export interface FhirQuestionnaire {
@@ -96,6 +97,7 @@ export type FhirQuestionnaireResponseAnswer =
   | { valueBoolean: boolean }
   | { valueInteger: number }
   | { valueDate: string }
+  | { valueDateTime: string }
   | { valueCoding: ChoiceOption };
 
 export interface FhirQuestionnaireResponseItem {
@@ -132,7 +134,7 @@ export interface CreatePatientInput {
   birthDate: string;
 }
 
-export type QuestionnaireItemType = "string" | "text" | "boolean" | "choice" | "integer" | "date";
+export type QuestionnaireItemType = "string" | "text" | "boolean" | "choice" | "integer" | "date" | "dateTime" | "group";
 
 export interface ChoiceOption {
   system: string;
@@ -146,6 +148,7 @@ export interface QuestionnaireItem {
   type: QuestionnaireItemType;
   required?: boolean;
   options?: ChoiceOption[];
+  items?: QuestionnaireItem[];
 }
 
 export interface QuestionnaireSummary {

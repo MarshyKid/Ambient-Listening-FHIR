@@ -5,7 +5,7 @@ from .common import ApiModel, FhirJson
 
 class ReviewedAnswer(ApiModel):
     linkId: str
-    valueType: Literal["string", "text", "boolean", "choice", "integer", "date"]
+    valueType: Literal["string", "text", "boolean", "choice", "integer", "date", "dateTime", "group"]
     value: Any
 
 

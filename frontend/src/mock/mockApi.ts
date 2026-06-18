@@ -21,6 +21,7 @@ import { extractMock } from "./mockExtraction";
 import { mockPatients } from "./mockPatients";
 import { mockQuestionnaires } from "./mockQuestionnaires";
 import { mockTranscripts } from "./mockTranscripts";
+import { flattenAnswerableItems } from "../utils/questionnaireItems";
 
 let patients: PatientSummary[] = [...mockPatients];
 let patientCounter = patients.length + 1;
@@ -106,19 +107,24 @@ function toFhirQuestionnaire(questionnaire: Questionnaire): FhirQuestionnaire {
     title: questionnaire.title,
     description: questionnaire.description,
     status: questionnaire.status,
-    item: questionnaire.items.map((item) => ({
-      linkId: item.linkId,
-      text: item.text,
-      type: item.type,
-      required: item.required,
-      answerOption: item.options?.map((option) => ({
-        valueCoding: {
-          system: option.system,
-          code: option.code,
-          display: option.display
-        }
-      }))
-    }))
+    item: questionnaire.items.map(toFhirQuestionnaireItem)
+  };
+}
+
+function toFhirQuestionnaireItem(item: Questionnaire["items"][number]): FhirQuestionnaire["item"][number] {
+  return {
+    linkId: item.linkId,
+    text: item.text,
+    type: item.type,
+    required: item.required,
+    answerOption: item.options?.map((option) => ({
+      valueCoding: {
+        system: option.system,
+        code: option.code,
+        display: option.display
+      }
+    })),
+    item: item.items?.map(toFhirQuestionnaireItem)
   };
 }
 
@@ -303,7 +309,7 @@ export async function listQuestionnaires(): Promise<QuestionnaireSummary[]> {
   return delay(
     mockQuestionnaires.map(({ items, ...questionnaire }) => ({
       ...questionnaire,
-      itemCount: items.length
+      itemCount: flattenAnswerableItems(items).length
     }))
   );
 }
@@ -344,6 +350,9 @@ function answerToFhirValue(answer: ExtractedAnswer): FhirQuestionnaireResponseAn
   if (answer.itemType === "date" && typeof answer.value === "string") {
     return { valueDate: answer.value };
   }
+  if (answer.itemType === "dateTime" && typeof answer.value === "string") {
+    return { valueDateTime: answer.value };
+  }
   if (answer.itemType === "choice" && typeof answer.value === "object" && "code" in answer.value) {
     return { valueCoding: answer.value };
   }
@@ -360,7 +369,10 @@ export function buildQuestionnaireResponsePreview(params: {
   questionnaire: Questionnaire;
   answers: ExtractedAnswer[];
 }): QuestionnaireResponsePreviewResult {
-  const includedAnswers = params.answers.filter((answer) => answer.status === "accepted" || answer.status === "needs-review");
+  const answerableLinkIds = new Set(flattenAnswerableItems(params.questionnaire.items).map((item) => item.linkId));
+  const includedAnswers = params.answers.filter(
+    (answer) => answerableLinkIds.has(answer.linkId) && (answer.status === "accepted" || answer.status === "needs-review")
+  );
   const items = includedAnswers.flatMap((answer) => {
     const value = answerToFhirValue(answer);
     if (!value) return [];

@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     fhir_timeout_seconds: float = Field(default=10, alias="FHIR_TIMEOUT_SECONDS")
     enable_fhir_validate: bool = Field(default=False, alias="ENABLE_FHIR_VALIDATE")
 
+    llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
+    llm_model: str = Field(default="gpt-5.5", alias="LLM_MODEL")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    llm_timeout_seconds: float = Field(default=45, alias="LLM_TIMEOUT_SECONDS")
+
     @field_validator("fhir_base_url", "questionnaire_canonical_base")
     @classmethod
     def strip_trailing_slash(cls, value: str) -> str:

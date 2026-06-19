@@ -73,14 +73,27 @@ export default function ConversationInput({
         </div>
       </div>
 
-      <section className="card section-card">
-        <h2>{questionnaire.title}</h2>
-        <p className="muted">
-          Version {questionnaire.version} · {answerableItems.length} answerable items
-          {groupCount > 0 ? ` · ${groupCount} groups` : ""}
-        </p>
-        {renderQuestionnaireOutline(questionnaire.items)}
-      </section>
+      <div className="fhir-query-panel">
+        <div className="query-panel-header">
+          <div>
+            <p className="eyebrow">Demo</p>
+            <h2>Questionnaire Details</h2>
+          </div>
+          <span className="query-status">
+            Questionnaire - {answerableItems.length} answerable items
+            {groupCount > 0 ? ` - ${groupCount} groups` : ""}
+          </span>
+        </div>
+
+        <details className="raw-response">
+          <summary>Questionnaire questions</summary>
+          <div className="raw-response-content">
+            <h2>{questionnaire.title}</h2>
+            <p className="muted">Version {questionnaire.version}</p>
+            {renderQuestionnaireOutline(questionnaire.items)}
+          </div>
+        </details>
+      </div>
 
       <div className="card">
         <div className="sample-row">

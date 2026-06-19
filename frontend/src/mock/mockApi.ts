@@ -21,7 +21,7 @@ import { extractMock } from "./mockExtraction";
 import { mockPatients } from "./mockPatients";
 import { mockQuestionnaires } from "./mockQuestionnaires";
 import { mockTranscripts } from "./mockTranscripts";
-import { flattenAnswerableItems } from "../utils/questionnaireItems";
+import { flattenAnswerableItems, hasAnswerValue } from "../utils/questionnaireItems";
 
 let patients: PatientSummary[] = [...mockPatients];
 let patientCounter = patients.length + 1;
@@ -370,9 +370,7 @@ export function buildQuestionnaireResponsePreview(params: {
   answers: ExtractedAnswer[];
 }): QuestionnaireResponsePreviewResult {
   const answerableLinkIds = new Set(flattenAnswerableItems(params.questionnaire.items).map((item) => item.linkId));
-  const includedAnswers = params.answers.filter(
-    (answer) => answerableLinkIds.has(answer.linkId) && (answer.status === "accepted" || answer.status === "needs-review")
-  );
+  const includedAnswers = params.answers.filter((answer) => answerableLinkIds.has(answer.linkId) && hasAnswerValue(answer.value));
   const items = includedAnswers.flatMap((answer) => {
     const value = answerToFhirValue(answer);
     if (!value) return [];
@@ -385,8 +383,6 @@ export function buildQuestionnaireResponsePreview(params: {
       }
     ];
   });
-  const allIncludedAreAccepted = items.length > 0 && includedAnswers.every((answer) => answer.status === "accepted");
-
   return {
     requestUrl: params.requestUrl,
     method: "POST",
@@ -394,7 +390,7 @@ export function buildQuestionnaireResponsePreview(params: {
     answeredItemCount: items.length,
     resource: {
       resourceType: "QuestionnaireResponse",
-      status: allIncludedAreAccepted ? "completed" : "in-progress",
+      status: "completed",
       questionnaire: params.questionnaire.url,
       subject: {
         reference: `Patient/${params.patient.id}`,

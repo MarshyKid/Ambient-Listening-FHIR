@@ -1,4 +1,12 @@
-import type { ExtractionResult, Questionnaire, QuestionnaireItem } from "../types";
+import type { ExtractedValue, ExtractionResult, Questionnaire, QuestionnaireItem } from "../types";
+
+export const manualEntryEvidence = "Manual entry required. Automated extraction is deferred.";
+
+export function hasAnswerValue(value: ExtractedValue) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  return true;
+}
 
 export function flattenAnswerableItems(items: QuestionnaireItem[]): QuestionnaireItem[] {
   return items.flatMap((item) => {
@@ -25,7 +33,7 @@ export function buildManualReviewResult(questionnaire: Questionnaire): Extractio
       itemType: item.type,
       value: null,
       confidence: 0,
-      evidence: "Manual entry required. Automated extraction is deferred.",
+      evidence: manualEntryEvidence,
       status: "unanswered"
     })),
     clinicalSuggestions: []

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ClinicalSuggestion, ExtractedAnswer, PatientSummary, Questionnaire, SaveResult } from "../types";
 import { saveConfirmedResources } from "../mock/mockApi";
+import { hasAnswerValue } from "../utils/questionnaireItems";
 
 interface SaveConfirmationProps {
   patient: PatientSummary;
@@ -20,8 +21,8 @@ export default function SaveConfirmation({
   onSaved
 }: SaveConfirmationProps) {
   const [saving, setSaving] = useState(false);
-  const acceptedAnswers = answers.filter((answer) => answer.status === "accepted").length;
-  const notAcceptedAnswers = answers.length - acceptedAnswers;
+  const answeredAnswers = answers.filter((answer) => hasAnswerValue(answer.value)).length;
+  const unansweredAnswers = answers.length - answeredAnswers;
   const acceptedSuggestions = clinicalSuggestions.filter((suggestion) => suggestion.accepted).length;
   const willCreateAllergy = clinicalSuggestions.some((suggestion) => suggestion.resourceType === "AllergyIntolerance" && suggestion.accepted);
 
@@ -62,12 +63,12 @@ export default function SaveConfirmation({
             <small>Version {questionnaire.version}</small>
           </div>
           <div>
-            <span>Accepted answers</span>
-            <strong>{acceptedAnswers}</strong>
+            <span>Answered items</span>
+            <strong>{answeredAnswers}</strong>
           </div>
           <div>
-            <span>Unanswered/rejected/needs review</span>
-            <strong>{notAcceptedAnswers}</strong>
+            <span>Unanswered items</span>
+            <strong>{unansweredAnswers}</strong>
           </div>
           <div>
             <span>Accepted clinical suggestions</span>

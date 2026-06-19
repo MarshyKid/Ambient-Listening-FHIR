@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { BackendApiError, buildBackendSaveRequest, saveToBackend } from "../api/save";
 import type { ClinicalSuggestion, ExtractedAnswer, PatientSummary, Questionnaire, SaveResult } from "../types";
-import { saveConfirmedResources } from "../mock/mockApi";
 import { hasAnswerValue } from "../utils/questionnaireItems";
 
 interface SaveConfirmationProps {
@@ -12,6 +12,18 @@ interface SaveConfirmationProps {
   onSaved: (result: SaveResult) => void;
 }
 
+interface SaveErrorState {
+  message: string;
+  raw: unknown;
+}
+
+interface TransactionEntry {
+  resource?: {
+    resourceType?: string;
+    [key: string]: unknown;
+  };
+}
+
 export default function SaveConfirmation({
   patient,
   questionnaire,
@@ -21,21 +33,33 @@ export default function SaveConfirmation({
   onSaved
 }: SaveConfirmationProps) {
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<SaveErrorState | null>(null);
   const answeredAnswers = answers.filter((answer) => hasAnswerValue(answer.value)).length;
   const unansweredAnswers = answers.length - answeredAnswers;
-  const acceptedSuggestions = clinicalSuggestions.filter((suggestion) => suggestion.accepted).length;
-  const willCreateAllergy = clinicalSuggestions.some((suggestion) => suggestion.resourceType === "AllergyIntolerance" && suggestion.accepted);
+  const acceptedSuggestions = clinicalSuggestions.filter((suggestion) => suggestion.accepted && suggestion.resourceType === "AllergyIntolerance").length;
+  const willCreateAllergy = acceptedSuggestions > 0;
 
   async function handleSave() {
     setSaving(true);
+    setSaveError(null);
     try {
-      const result = await saveConfirmedResources({
-        patientId: patient.id,
-        questionnaireId: questionnaire.id,
+      const payload = buildBackendSaveRequest({
+        patient,
+        questionnaire,
         answers,
         clinicalSuggestions
       });
+      const result = await saveToBackend(payload);
       onSaved(result);
+    } catch (error) {
+      if (error instanceof BackendApiError) {
+        setSaveError({ message: error.message, raw: error.raw });
+      } else {
+        setSaveError({
+          message: error instanceof Error ? error.message : "Save failed.",
+          raw: error
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -71,7 +95,7 @@ export default function SaveConfirmation({
             <strong>{unansweredAnswers}</strong>
           </div>
           <div>
-            <span>Accepted clinical suggestions</span>
+            <span>Accepted AllergyIntolerance suggestions</span>
             <strong>{acceptedSuggestions}</strong>
           </div>
         </div>
@@ -81,31 +105,91 @@ export default function SaveConfirmation({
           <ul className="plain-list">
             <li>1 Encounter</li>
             <li>1 QuestionnaireResponse</li>
-            {willCreateAllergy && <li>1 AllergyIntolerance</li>}
+            {willCreateAllergy && <li>{acceptedSuggestions} AllergyIntolerance</li>}
           </ul>
         </div>
 
         {!saveResult && (
           <button className="primary-button" type="button" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Confirm & Save"}
+            {saving ? "Saving..." : "Save to FHIR"}
           </button>
         )}
       </div>
 
-      {saveResult && (
-        <div className="card success-card">
-          <span className="success-pill">Saved</span>
-          <h2>Mock resources created</h2>
-          <div className="created-resource-list">
-            {saveResult.createdResources.map((resource) => (
-              <div key={`${resource.resourceType}-${resource.id}`} className="created-resource">
-                <strong>{resource.resourceType}</strong>
-                <code>{resource.id}</code>
-              </div>
-            ))}
-          </div>
+      {saveError && (
+        <div className="card error-card">
+          <span className="error-pill">Save failed</span>
+          <h2>FHIR save failed</h2>
+          <p>{saveError.message}</p>
+          {saveError.raw !== undefined && (
+            <details className="raw-response">
+              <summary>Raw error details</summary>
+              <pre>{JSON.stringify(saveError.raw, null, 2)}</pre>
+            </details>
+          )}
         </div>
       )}
+
+      {saveResult && <SaveSuccess saveResult={saveResult} />}
     </section>
   );
+}
+
+function SaveSuccess({ saveResult }: { saveResult: SaveResult }) {
+  const encounters = getResourcesFromTransactionBundle(saveResult.transactionBundle, "Encounter");
+  const questionnaireResponses = getResourcesFromTransactionBundle(saveResult.transactionBundle, "QuestionnaireResponse");
+  const allergies = getResourcesFromTransactionBundle(saveResult.transactionBundle, "AllergyIntolerance");
+
+  return (
+    <>
+      <div className="card success-card">
+        <span className="success-pill">Saved</span>
+        <h2>Save successful</h2>
+        <div className="created-resource-list">
+          {saveResult.createdResources.map((resource) => (
+            <div key={`${resource.resourceType}-${resource.id}`} className="created-resource">
+              <strong>{resource.resourceType}</strong>
+              <code>
+                {resource.resourceType}/{resource.id}
+              </code>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section className="card section-card raw-fhir-panels">
+        <h2>Raw FHIR Panels</h2>
+        {encounters.map((resource, index) => (
+          <RawPanel key={`encounter-${index}`} title="Raw Encounter Request" data={resource} />
+        ))}
+        {questionnaireResponses.map((resource, index) => (
+          <RawPanel key={`questionnaire-response-${index}`} title="Raw QuestionnaireResponse Request" data={resource} />
+        ))}
+        {allergies.map((resource, index) => (
+          <RawPanel key={`allergy-${index}`} title="Raw AllergyIntolerance Request" data={resource} />
+        ))}
+        <RawPanel title="Raw transaction Bundle request" data={saveResult.transactionBundle} />
+        <RawPanel title="Raw transaction response" data={saveResult.responseBundle} />
+      </section>
+    </>
+  );
+}
+
+function RawPanel({ title, data }: { title: string; data: unknown }) {
+  return (
+    <details className="raw-response">
+      <summary>{title}</summary>
+      <pre>{JSON.stringify(data, null, 2)}</pre>
+    </details>
+  );
+}
+
+function getResourcesFromTransactionBundle(bundle: Record<string, unknown>, resourceType: string): Array<Record<string, unknown>> {
+  const entries = Array.isArray(bundle.entry) ? (bundle.entry as TransactionEntry[]) : [];
+  return entries.flatMap((entry) => {
+    if (entry.resource?.resourceType === resourceType) {
+      return [entry.resource as Record<string, unknown>];
+    }
+    return [];
+  });
 }

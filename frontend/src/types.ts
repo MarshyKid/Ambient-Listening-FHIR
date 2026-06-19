@@ -207,11 +207,39 @@ export interface CreatedResource {
   id: string;
 }
 
-export interface SaveResult {
+export type ReviewedAnswerValueType = Exclude<QuestionnaireItemType, "group">;
+
+export interface ReviewedAnswerRequest {
+  linkId: string;
+  valueType: ReviewedAnswerValueType;
+  value: unknown;
+}
+
+export interface AcceptedSuggestionRequest {
+  type: "AllergyIntolerance";
+  fields: Record<string, string>;
+}
+
+export interface BackendSaveRequest {
+  patientId: string;
+  practitionerId: string;
+  questionnaireId: string;
+  answers: ReviewedAnswerRequest[];
+  acceptedSuggestions: AcceptedSuggestionRequest[];
+}
+
+export interface BackendSaveResponse {
+  requestUrl: string;
+  status: number;
+  statusText: string;
+  transactionBundle: Record<string, unknown>;
+  responseBundle: Record<string, unknown>;
   encounterId: string;
   questionnaireResponseId: string;
   createdResources: CreatedResource[];
 }
+
+export type SaveResult = BackendSaveResponse;
 
 export interface SampleTranscript {
   id: string;

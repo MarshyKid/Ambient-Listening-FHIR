@@ -24,7 +24,6 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     throw new Error(errorMessage(data, response));
   }
-  console.log(response)
   return data as T;
 }
 

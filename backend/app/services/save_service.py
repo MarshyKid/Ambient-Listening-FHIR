@@ -72,6 +72,7 @@ class SaveService:
                 questionnaire_response=questionnaire_response,
                 allergies=allergies,
             )
+            print(transaction_bundle)
             response = await self.client.transaction(transaction_bundle)
             response_bundle = response.data or {}
             failures = transaction_failures(response_bundle)

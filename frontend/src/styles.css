@@ -1018,7 +1018,8 @@ textarea {
 .confidence-badge,
 .status-pill,
 .recommended-pill,
-.success-pill {
+.success-pill,
+.error-pill {
   display: inline-flex;
   align-items: center;
   width: max-content;
@@ -1042,6 +1043,11 @@ textarea {
 }
 
 .confidence-low {
+  color: var(--attention);
+  background: var(--attention-tint);
+}
+
+.error-pill {
   color: var(--attention);
   background: var(--attention-tint);
 }
@@ -1144,6 +1150,25 @@ textarea {
   display: grid;
   gap: 14px;
   border-left: 3px solid var(--confirmed);
+}
+
+.error-card {
+  display: grid;
+  gap: 14px;
+  border-left: 3px solid var(--attention);
+}
+
+.error-card p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.raw-fhir-panels {
+  gap: 10px;
+}
+
+.raw-fhir-panels h2 {
+  margin-bottom: 2px;
 }
 
 .created-resource-list {

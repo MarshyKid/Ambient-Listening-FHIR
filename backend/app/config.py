@@ -19,7 +19,7 @@ class Settings(BaseSettings):
         alias="QUESTIONNAIRE_CANONICAL_BASE",
     )
 
-    default_practitioner_identifier: str = Field(default="nurse-1", alias="DEFAULT_PRACTITIONER_IDENTIFIER")
+    default_practitioner_identifier: str = Field(default="nurse-demo", alias="DEFAULT_PRACTITIONER_IDENTIFIER")
     allowed_origins: str = Field(default="http://localhost:5173", alias="ALLOWED_ORIGINS")
     fhir_timeout_seconds: float = Field(default=10, alias="FHIR_TIMEOUT_SECONDS")
     enable_fhir_validate: bool = Field(default=False, alias="ENABLE_FHIR_VALIDATE")

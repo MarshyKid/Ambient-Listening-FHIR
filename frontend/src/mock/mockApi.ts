@@ -415,9 +415,33 @@ export async function saveConfirmedResources(payload: SavePayload): Promise<Save
   if (acceptedAllergy) {
     createdResources.push({ resourceType: "AllergyIntolerance", id: `mock-allergy-${suffix}` });
   }
+  const transactionBundle = {
+    resourceType: "Bundle",
+    type: "transaction",
+    entry: createdResources.map((resource) => ({
+      resource: {
+        resourceType: resource.resourceType
+      }
+    }))
+  };
+  const responseBundle = {
+    resourceType: "Bundle",
+    type: "transaction-response",
+    entry: createdResources.map((resource) => ({
+      response: {
+        status: "201 Created",
+        location: `${resource.resourceType}/${resource.id}`
+      }
+    }))
+  };
 
   return delay(
     {
+      requestUrl: fhirBaseUrl,
+      status: 200,
+      statusText: "OK",
+      transactionBundle,
+      responseBundle,
       encounterId: `mock-encounter-${suffix}`,
       questionnaireResponseId: `mock-qr-${suffix}`,
       createdResources

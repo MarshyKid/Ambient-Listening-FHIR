@@ -391,7 +391,7 @@ export function buildQuestionnaireResponsePreview(params: {
     resource: {
       resourceType: "QuestionnaireResponse",
       status: "completed",
-      questionnaire: params.questionnaire.url,
+      questionnaire: `Questionnaire/${params.questionnaire.url}`,
       subject: {
         reference: `Patient/${params.patient.id}`,
         display: params.patient.name

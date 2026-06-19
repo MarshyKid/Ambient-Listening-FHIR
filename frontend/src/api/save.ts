@@ -11,6 +11,7 @@ import type {
   ReviewedAnswerValueType
 } from "../types";
 import { hasAnswerValue } from "../utils/questionnaireItems";
+import { normalizeFhirDateTime } from "../utils/fhirDateTime";
 import { apiBaseUrl, defaultPractitionerIdentifier } from "./config";
 
 export class BackendApiError extends Error {
@@ -80,7 +81,10 @@ function toReviewedAnswerRequest(answer: ExtractedAnswer): ReviewedAnswerRequest
 }
 
 function normalizedAnswerValue(answer: ExtractedAnswer): unknown {
-  if (answer.itemType === "string" || answer.itemType === "text" || answer.itemType === "date" || answer.itemType === "dateTime") {
+  if (answer.itemType === "dateTime" && typeof answer.value === "string") {
+    return normalizeFhirDateTime(answer.value);
+  }
+  if (answer.itemType === "string" || answer.itemType === "text" || answer.itemType === "date") {
     return typeof answer.value === "string" ? answer.value : undefined;
   }
   if (answer.itemType === "integer") {
@@ -98,6 +102,7 @@ function normalizedAnswerValue(answer: ExtractedAnswer): unknown {
     }
     return undefined;
   }
+  
   return undefined;
 }
 

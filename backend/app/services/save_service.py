@@ -56,7 +56,7 @@ class SaveService:
             authored_at = utc_now()
             encounter = build_encounter(patient_id=str(patient["id"]), start=started_at, end=authored_at)
             questionnaire_response = build_questionnaire_response(
-                questionnaire_canonical=f"{questionnaire_url}|{questionnaire_version}",
+                questionnaire_canonical=f"Questionnaire/{questionnaire_url}",
                 patient_id=str(patient["id"]),
                 practitioner_id=practitioner.id,
                 authored=authored_at,

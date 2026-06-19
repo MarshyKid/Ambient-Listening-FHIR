@@ -1,7 +1,11 @@
-from app.fhir.constants import ENCOUNTER_FULL_URL
-
-
-def build_allergy_intolerance(*, patient_id: str, practitioner_id: str, substance: str, reaction: str | None = None) -> dict:
+def build_allergy_intolerance(
+    *,
+    patient_id: str,
+    practitioner_id: str,
+    encounter_reference: str,
+    substance: str,
+    reaction: str | None = None,
+) -> dict:
     resource = {
         "resourceType": "AllergyIntolerance",
         "clinicalStatus": {
@@ -22,7 +26,7 @@ def build_allergy_intolerance(*, patient_id: str, practitioner_id: str, substanc
         },
         "code": {"text": substance},
         "patient": {"reference": f"Patient/{patient_id}"},
-        "encounter": {"reference": ENCOUNTER_FULL_URL},
+        "encounter": {"reference": encounter_reference},
         "recorder": {"reference": f"Practitioner/{practitioner_id}"},
     }
     if reaction and reaction.strip():

@@ -1,5 +1,6 @@
 import re
 from typing import Any
+from uuid import uuid4
 
 from fastapi import HTTPException
 
@@ -8,10 +9,8 @@ from app.fhir.allergy_builder import build_allergy_intolerance
 from app.fhir.bundle_builder import build_transaction_bundle
 from app.fhir.encounter_builder import build_encounter, utc_now
 from app.fhir.questionnaire_mapper import (
-    derive_slug,
     find_choice_coding,
     questionnaire_items_by_link_id,
-    require_questionnaire_url_version,
 )
 from app.fhir.response_builder import build_questionnaire_response, build_response_item
 from app.schemas.save import AcceptedSuggestion, CreatedResource, ReviewedAnswer, SaveRequest, SaveResponse
@@ -49,16 +48,18 @@ class SaveService:
             patient = await self.patient_service.read_patient_resource(request.patientId)
             practitioner = await self.practitioner_service.resolve_practitioner(request.practitionerId)
             questionnaire = await self.questionnaire_service.read_questionnaire_resource(request.questionnaireId)
-            questionnaire_url, questionnaire_version = require_questionnaire_url_version(questionnaire)
-            questionnaire_slug = derive_slug(questionnaire_url)
+            questionnaire_reference = questionnaire_response_questionnaire_reference(questionnaire)
 
             qr_items = self._validate_and_build_answers(request.answers, questionnaire)
             authored_at = utc_now()
+            encounter_full_url = f"urn:uuid:{uuid4()}"
+            questionnaire_response_full_url = f"urn:uuid:{uuid4()}"
             encounter = build_encounter(patient_id=str(patient["id"]), start=started_at, end=authored_at)
             questionnaire_response = build_questionnaire_response(
-                questionnaire_canonical=f"Questionnaire/{questionnaire_url}",
+                questionnaire_canonical=questionnaire_reference,
                 patient_id=str(patient["id"]),
                 practitioner_id=practitioner.id,
+                encounter_reference=encounter_full_url,
                 authored=authored_at,
                 items=qr_items,
             )
@@ -66,13 +67,15 @@ class SaveService:
                 suggestions=request.acceptedSuggestions,
                 patient_id=str(patient["id"]),
                 practitioner_id=practitioner.id,
+                encounter_reference=encounter_full_url,
             )
             transaction_bundle = build_transaction_bundle(
                 encounter=encounter,
                 questionnaire_response=questionnaire_response,
                 allergies=allergies,
+                encounter_full_url=encounter_full_url,
+                questionnaire_response_full_url=questionnaire_response_full_url,
             )
-            print(transaction_bundle)
             response = await self.client.transaction(transaction_bundle)
             response_bundle = response.data or {}
             failures = transaction_failures(response_bundle)
@@ -84,7 +87,7 @@ class SaveService:
                         "resolvedPatientFhirId": patient.get("id"),
                         "resolvedPractitionerFhirId": practitioner.id,
                         "resolvedQuestionnaireFhirId": questionnaire.get("id"),
-                        "questionnaireSlug": questionnaire_slug,
+                        "questionnaireReference": questionnaire_reference,
                         "createdResourceIds": [],
                         "saveStatus": "failed",
                         "errorMessage": message,
@@ -113,7 +116,7 @@ class SaveService:
                     "resolvedPatientFhirId": patient.get("id"),
                     "resolvedPractitionerFhirId": practitioner.id,
                     "resolvedQuestionnaireFhirId": questionnaire.get("id"),
-                    "questionnaireSlug": questionnaire_slug,
+                    "questionnaireReference": questionnaire_reference,
                     "createdResourceIds": [item.model_dump() for item in created],
                     "saveStatus": "success",
                     "errorMessage": None,
@@ -193,7 +196,14 @@ class SaveService:
             raise HTTPException(status_code=400, detail=f"Choice answer does not match Questionnaire options for {answer.linkId}.")
         return coding
 
-    def _build_allergies(self, *, suggestions: list[AcceptedSuggestion], patient_id: str, practitioner_id: str) -> list[dict]:
+    def _build_allergies(
+        self,
+        *,
+        suggestions: list[AcceptedSuggestion],
+        patient_id: str,
+        practitioner_id: str,
+        encounter_reference: str,
+    ) -> list[dict]:
         allergies: list[dict] = []
         for suggestion in suggestions:
             if suggestion.type != "AllergyIntolerance":
@@ -205,6 +215,7 @@ class SaveService:
                 build_allergy_intolerance(
                     patient_id=patient_id,
                     practitioner_id=practitioner_id,
+                    encounter_reference=encounter_reference,
                     substance=substance,
                     reaction=suggestion.fields.get("reaction"),
                 )
@@ -248,6 +259,16 @@ def first_id(resources: list[CreatedResource], resource_type: str) -> str | None
         if resource.resourceType == resource_type:
             return resource.id
     return None
+
+
+def questionnaire_response_questionnaire_reference(questionnaire: dict) -> str:
+    questionnaire_id = questionnaire.get("id")
+    if not questionnaire_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Questionnaire.id is required to build QuestionnaireResponse.questionnaire.",
+        )
+    return f"Questionnaire/{questionnaire_id}"
 
 
 def _http_exception_message(exc: HTTPException) -> str:

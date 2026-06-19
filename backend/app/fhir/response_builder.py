@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from app.fhir.constants import ENCOUNTER_FULL_URL
 from app.fhir.encounter_builder import iso_utc
 
 
@@ -9,6 +8,7 @@ def build_questionnaire_response(
     questionnaire_canonical: str,
     patient_id: str,
     practitioner_id: str,
+    encounter_reference: str,
     authored: datetime,
     items: list[dict],
 ) -> dict:
@@ -17,7 +17,7 @@ def build_questionnaire_response(
         "status": "completed",
         "questionnaire": questionnaire_canonical,
         "subject": {"reference": f"Patient/{patient_id}"},
-        "encounter": {"reference": ENCOUNTER_FULL_URL},
+        "encounter": {"reference": encounter_reference},
         "author": {"reference": f"Practitioner/{practitioner_id}"},
         "authored": iso_utc(authored),
         "item": items,

@@ -1,157 +1,47 @@
-import { useMemo, useState } from "react";
-import ConversationInput from "./components/ConversationInput";
-import ActiveContextBar from "./components/ActiveContextBar";
-import PatientSelection from "./components/PatientSelection";
-import QuestionnaireSelection from "./components/QuestionnaireSelection";
-import ReviewExtraction from "./components/ReviewExtraction";
-import SaveConfirmation from "./components/SaveConfirmation";
-import Stepper from "./components/Stepper";
-import type { ClinicalSuggestion, ExtractedAnswer, ExtractionResult, PatientSummary, Questionnaire, SaveResult } from "./types";
-
-const steps = ["Patient", "Questionnaire", "Conversation", "Review", "Save"];
+import { useState } from "react";
+import type { AppView } from "./appView";
+import AppShell from "./components/AppShell";
+import HomePage from "./components/HomePage";
+import NewIntakeWizard from "./components/NewIntakeWizard";
+import PlaceholderPage from "./components/PlaceholderPage";
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [selectedPatient, setSelectedPatient] = useState<PatientSummary | null>(null);
-  const [selectedQuestionnaire, setSelectedQuestionnaire] = useState<Questionnaire | null>(null);
-  const [transcript, setTranscript] = useState("");
-  const [reviewedAnswers, setReviewedAnswers] = useState<ExtractedAnswer[]>([]);
-  const [clinicalSuggestions, setClinicalSuggestions] = useState<ClinicalSuggestion[]>([]);
-  const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
+  const [appView, setAppView] = useState<AppView>("home");
+  const [newIntakeKey, setNewIntakeKey] = useState(0);
 
-  const hasExtraction = reviewedAnswers.length > 0;
-
-  const maxReachableStep = useMemo(() => {
-    if (saveResult) return 4;
-    if (hasExtraction) return Math.max(currentStep, 3);
-    if (selectedPatient && selectedQuestionnaire && transcript.trim()) return Math.max(currentStep, 2);
-    if (selectedPatient && selectedQuestionnaire) return 2;
-    if (selectedPatient) return 1;
-    return 0;
-  }, [currentStep, hasExtraction, saveResult, selectedPatient, selectedQuestionnaire, transcript]);
-
-  function clearFromPatient() {
-    setSelectedQuestionnaire(null);
-    setTranscript("");
-    setReviewedAnswers([]);
-    setClinicalSuggestions([]);
-    setSaveResult(null);
-  }
-
-  function clearFromQuestionnaire() {
-    setTranscript("");
-    setReviewedAnswers([]);
-    setClinicalSuggestions([]);
-    setSaveResult(null);
-  }
-
-  function clearFromTranscript() {
-    setReviewedAnswers([]);
-    setClinicalSuggestions([]);
-    setSaveResult(null);
-  }
-
-  function handleSelectPatient(patient: PatientSummary) {
-    if (selectedPatient?.id !== patient.id) {
-      clearFromPatient();
-    }
-    setSelectedPatient(patient);
-  }
-
-  function handleSelectQuestionnaire(questionnaire: Questionnaire) {
-    if (selectedQuestionnaire?.id !== questionnaire.id) {
-      clearFromQuestionnaire();
-    }
-    setSelectedQuestionnaire(questionnaire);
-  }
-
-  function handleTranscriptChange(nextTranscript: string) {
-    if (hasExtraction || saveResult) {
-      clearFromTranscript();
-    }
-    setTranscript(nextTranscript);
-  }
-
-  function handleExtracted(result: ExtractionResult) {
-    setReviewedAnswers([...result.answers, ...result.unanswered]);
-    setClinicalSuggestions(result.clinicalSuggestions);
-    setSaveResult(null);
-    setCurrentStep(3);
-  }
-
-  function handleStepClick(step: number) {
-    if (step <= currentStep && step <= maxReachableStep) {
-      setCurrentStep(step);
-    }
+  function startNewIntake() {
+    setNewIntakeKey((key) => key + 1);
+    setAppView("new-intake");
   }
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">demo</p>
-          <h1>Ambient Listening to FHIR Resources</h1>
-        </div>
-      </header>
+    <div className="app-frame">
+      <AppShell activeView={appView} onNavigate={setAppView} />
 
-      <Stepper steps={steps} currentStep={currentStep} onStepClick={handleStepClick} />
-      <ActiveContextBar patient={selectedPatient} questionnaire={selectedQuestionnaire} answers={reviewedAnswers} />
-
-      <main>
-        {currentStep === 0 && (
-          <PatientSelection
-            selectedPatient={selectedPatient}
-            onSelectPatient={handleSelectPatient}
-            onContinue={() => selectedPatient && setCurrentStep(1)}
+      <main className="app-shell">
+        {appView === "home" && (
+          <HomePage
+            onStartNewIntake={startNewIntake}
+            onOpenIntakes={() => setAppView("intakes")}
+            onOpenQuestionnaires={() => setAppView("questionnaires")}
           />
         )}
 
-        {currentStep === 1 && selectedPatient && (
-          <QuestionnaireSelection
-            selectedQuestionnaire={selectedQuestionnaire}
-            onSelectQuestionnaire={handleSelectQuestionnaire}
-            onContinue={() => selectedQuestionnaire && setCurrentStep(2)}
+        {appView === "intakes" && (
+          <PlaceholderPage
+            eyebrow="Workspace"
+            title="Intakes"
+            text="Intake list coming soon."
+            actionLabel="Start new intake"
+            onAction={startNewIntake}
           />
         )}
 
-        {currentStep === 2 && selectedPatient && selectedQuestionnaire && (
-          <ConversationInput
-            patient={selectedPatient}
-            questionnaire={selectedQuestionnaire}
-            transcript={transcript}
-            onTranscriptChange={handleTranscriptChange}
-            onExtracted={handleExtracted}
-          />
+        {appView === "questionnaires" && (
+          <PlaceholderPage eyebrow="Library" title="Questionnaire Library" text="Questionnaire management coming soon." />
         )}
 
-        {currentStep === 3 && selectedPatient && selectedQuestionnaire && hasExtraction && (
-          <ReviewExtraction
-            patient={selectedPatient}
-            questionnaire={selectedQuestionnaire}
-            answers={reviewedAnswers}
-            clinicalSuggestions={clinicalSuggestions}
-            onAnswersChange={(answers) => {
-              setReviewedAnswers(answers);
-              setSaveResult(null);
-            }}
-            onSuggestionsChange={(suggestions) => {
-              setClinicalSuggestions(suggestions);
-              setSaveResult(null);
-            }}
-            onContinue={() => setCurrentStep(4)}
-          />
-        )}
-
-        {currentStep === 4 && selectedPatient && selectedQuestionnaire && hasExtraction && (
-          <SaveConfirmation
-            patient={selectedPatient}
-            questionnaire={selectedQuestionnaire}
-            answers={reviewedAnswers}
-            clinicalSuggestions={clinicalSuggestions}
-            saveResult={saveResult}
-            onSaved={setSaveResult}
-          />
-        )}
+        {appView === "new-intake" && <NewIntakeWizard key={newIntakeKey} />}
       </main>
     </div>
   );

@@ -17,11 +17,10 @@ function formatGender(gender: PatientSummary["gender"]) {
 export default function ActiveContextBar({ patient, questionnaire, answers }: ActiveContextBarProps) {
   if (!patient) return null;
 
-  const accepted = countStatus(answers, "accepted");
-  const needsReview = countStatus(answers, "needs-review");
+  const extracted = countStatus(answers, "extracted");
+  const edited = countStatus(answers, "edited");
   const unanswered = countStatus(answers, "unanswered");
-  const rejected = countStatus(answers, "rejected");
-  const hasExtraction = answers.length > 0;
+  const hasReviewedValues = extracted + edited > 0;
 
   return (
     <section className="active-context-bar" aria-label="Active workflow context">
@@ -48,12 +47,11 @@ export default function ActiveContextBar({ patient, questionnaire, answers }: Ac
 
       <div className="context-field">
         <span className="context-key">Extraction</span>
-        {hasExtraction ? (
+        {hasReviewedValues ? (
           <span className="context-value context-chips">
-            <span className="context-chip ok">{accepted} accepted</span>
-            <span className="context-chip warn">{needsReview} review</span>
+            <span className="context-chip ok">{extracted} AI-filled</span>
+            <span className="context-chip ok">{edited} edited</span>
             <span className="context-chip zero">{unanswered} unanswered</span>
-            {rejected > 0 && <span className="context-chip warn">{rejected} rejected</span>}
           </span>
         ) : (
           <span className="context-value muted">Not extracted yet</span>

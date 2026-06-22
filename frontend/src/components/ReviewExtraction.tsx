@@ -33,6 +33,41 @@ function hasExtractionMetadata(answer: ExtractedAnswer) {
   return answer.confidence > 0 || (answer.evidence.trim().length > 0 && answer.evidence !== manualEntryEvidence);
 }
 
+function clinicalResourceSource(suggestion: ClinicalSuggestion) {
+  return suggestion.source ?? "ai";
+}
+
+function clinicalResourceHasRequiredSubstance(suggestion: ClinicalSuggestion) {
+  return suggestion.fields.substance?.trim().length > 0;
+}
+
+function isInvalidAllergyResource(suggestion: ClinicalSuggestion) {
+  if (suggestion.resourceType !== "AllergyIntolerance") return false;
+  const source = clinicalResourceSource(suggestion);
+  return (source === "manual" || suggestion.accepted) && !clinicalResourceHasRequiredSubstance(suggestion);
+}
+
+function makeManualAllergyIntolerance(): ClinicalSuggestion {
+  const id =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+  return {
+    id: `manual-allergy-${id}`,
+    resourceType: "AllergyIntolerance",
+    source: "manual",
+    summary: "Manual AllergyIntolerance",
+    confidence: 0,
+    evidence: "Manual entry",
+    fields: {
+      substance: "",
+      reaction: ""
+    },
+    accepted: true
+  };
+}
+
 function getReviewSections(items: QuestionnaireItem[]): ReviewSection[] {
   const sections: ReviewSection[] = [];
   const fallbackItems: QuestionnaireItem[] = [];
@@ -255,56 +290,92 @@ function ReviewSectionAccordion({
 function ClinicalSuggestionsPanel({
   suggestions,
   onSuggestionChange,
-  onSuggestionFieldChange
+  onSuggestionFieldChange,
+  onAddManualAllergy,
+  onRemoveManualSuggestion,
+  hasInvalidAllergyResource
 }: {
   suggestions: ClinicalSuggestion[];
   onSuggestionChange: (id: string, patch: Partial<ClinicalSuggestion>) => void;
   onSuggestionFieldChange: (id: string, field: string, value: string) => void;
+  onAddManualAllergy: () => void;
+  onRemoveManualSuggestion: (id: string) => void;
+  hasInvalidAllergyResource: boolean;
 }) {
   return (
     <section className="card section-card clinical-suggestions-panel">
-      <h2>Clinical Suggestions</h2>
+      <div className="review-card-header">
+        <div>
+          <h2>Additional Clinical Resources</h2>
+          <p className="muted compact-empty">Add resources to create during save, or accept AI-suggested resources.</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={onAddManualAllergy}>
+          + Add AllergyIntolerance
+        </button>
+      </div>
+      {hasInvalidAllergyResource && <p className="query-error">Substance is required for AllergyIntolerance resources.</p>}
       {suggestions.length === 0 ? (
-        <p className="muted compact-empty">No clinical suggestions generated.</p>
+        <p className="muted compact-empty">No clinical resources added.</p>
       ) : (
         <div className="suggestion-list">
-          {suggestions.map((suggestion) => (
-            <article key={suggestion.id} className={`suggestion-card ${suggestion.accepted ? "selected" : ""}`}>
-              <div className="review-card-header">
-                <div>
-                  <h3>{suggestion.resourceType}</h3>
-                  <p>{suggestion.summary}</p>
-                  {suggestion.confidence >= 0.85 && <span className="recommended-pill">Recommended to review</span>}
+          {suggestions.map((suggestion) => {
+            const source = clinicalResourceSource(suggestion);
+            const isManual = source === "manual";
+            const isInvalid = isInvalidAllergyResource(suggestion);
+            return (
+              <article key={suggestion.id} className={`suggestion-card ${suggestion.accepted ? "selected" : ""}`}>
+                <div className="review-card-header">
+                  <div>
+                    <h3>{suggestion.resourceType}</h3>
+                    <p>{suggestion.summary}</p>
+                    <span className="recommended-pill">{isManual ? "Manually added" : "AI suggested"}</span>
+                    {!isManual && suggestion.confidence >= 0.85 && <span className="recommended-pill">Recommended to review</span>}
+                  </div>
+                  {!isManual && suggestion.confidence > 0 && <ConfidenceBadge confidence={suggestion.confidence} />}
                 </div>
-                {suggestion.confidence > 0 && <ConfidenceBadge confidence={suggestion.confidence} />}
-              </div>
 
-              <div className="field-grid">
-                {Object.entries(suggestion.fields).map(([field, value]) => (
-                  <label key={field}>
-                    {field}
-                    <input value={value} onChange={(event) => onSuggestionFieldChange(suggestion.id, field, event.target.value)} />
+                <div className="field-grid">
+                  <label>
+                    Substance
+                    <input
+                      value={suggestion.fields.substance ?? ""}
+                      aria-invalid={isInvalid}
+                      onChange={(event) => onSuggestionFieldChange(suggestion.id, "substance", event.target.value)}
+                    />
                   </label>
-                ))}
-              </div>
-
-              {suggestion.evidence.trim().length > 0 && (
-                <div className="evidence">
-                  <span>Evidence</span>
-                  <q>{suggestion.evidence}</q>
+                  <label>
+                    Reaction
+                    <input
+                      value={suggestion.fields.reaction ?? ""}
+                      onChange={(event) => onSuggestionFieldChange(suggestion.id, "reaction", event.target.value)}
+                    />
+                  </label>
                 </div>
-              )}
 
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={suggestion.accepted}
-                  onChange={(event) => onSuggestionChange(suggestion.id, { accepted: event.target.checked })}
-                />
-                Accept suggestion
-              </label>
-            </article>
-          ))}
+                {!isManual && suggestion.evidence.trim().length > 0 && (
+                  <div className="evidence">
+                    <span>Evidence</span>
+                    <q>{suggestion.evidence}</q>
+                  </div>
+                )}
+
+                {isManual ? (
+                  <button className="secondary-button" type="button" onClick={() => onRemoveManualSuggestion(suggestion.id)}>
+                    Remove
+                  </button>
+                ) : (
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={suggestion.accepted}
+                      onChange={(event) => onSuggestionChange(suggestion.id, { accepted: event.target.checked })}
+                    />
+                    Accept suggestion
+                  </label>
+                )}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
@@ -325,6 +396,7 @@ export default function ReviewExtraction({
   const answersByLinkId = new Map(answers.map((answer) => [answer.linkId, answer]));
   const answeredCount = answers.filter((answer) => hasAnswerValue(answer.value)).length;
   const unansweredCount = answers.length - answeredCount;
+  const hasInvalidAllergyResource = clinicalSuggestions.some(isInvalidAllergyResource);
   const sections = getReviewSections(questionnaire.items);
   const questionnaireResponsePreview = buildQuestionnaireResponsePreview({
     requestUrl,
@@ -354,7 +426,7 @@ export default function ReviewExtraction({
 
     updateAnswer(item.linkId, {
       value,
-      status: hasAnswerValue(value) ? "accepted" : "unanswered"
+      status: hasAnswerValue(value) ? "edited" : "unanswered"
     });
   }
 
@@ -370,12 +442,23 @@ export default function ReviewExtraction({
     );
   }
 
+  function addManualAllergy() {
+    onSuggestionsChange([...clinicalSuggestions, makeManualAllergyIntolerance()]);
+  }
+
+  function removeManualSuggestion(id: string) {
+    onSuggestionsChange(clinicalSuggestions.filter((suggestion) => !(suggestion.id === id && clinicalResourceSource(suggestion) === "manual")));
+  }
+
   return (
     <section className="screen">
       <div className="screen-header">
         <div>
           <p className="eyebrow">Step 4</p>
           <h1>Manual Review</h1>
+          <p className="muted">
+            AI-extracted answers are pre-filled below. Review and edit any values before continuing. Continuing to Save confirms the values shown.
+          </p>
         </div>
       </div>
 
@@ -397,6 +480,9 @@ export default function ReviewExtraction({
         suggestions={clinicalSuggestions}
         onSuggestionChange={updateSuggestion}
         onSuggestionFieldChange={updateSuggestionField}
+        onAddManualAllergy={addManualAllergy}
+        onRemoveManualSuggestion={removeManualSuggestion}
+        hasInvalidAllergyResource={hasInvalidAllergyResource}
       />
 
       <FhirPreviewPanel
@@ -412,7 +498,10 @@ export default function ReviewExtraction({
             No answers have been entered. Saving will create an empty QuestionnaireResponse for this questionnaire.
           </span>
         )}
-        <button className="primary-button" type="button" onClick={onContinue}>
+        {hasInvalidAllergyResource && (
+          <span className="continue-helper zero-answer-warning">Substance is required for AllergyIntolerance resources.</span>
+        )}
+        <button className="primary-button" type="button" onClick={onContinue} disabled={hasInvalidAllergyResource}>
           Continue to Save ({answeredCount} answered)
         </button>
       </div>

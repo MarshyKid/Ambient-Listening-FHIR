@@ -36,8 +36,8 @@ export default function SaveConfirmation({
   const [saveError, setSaveError] = useState<SaveErrorState | null>(null);
   const answeredAnswers = answers.filter((answer) => hasAnswerValue(answer.value)).length;
   const unansweredAnswers = answers.length - answeredAnswers;
-  const acceptedSuggestions = clinicalSuggestions.filter((suggestion) => suggestion.accepted && suggestion.resourceType === "AllergyIntolerance").length;
-  const willCreateAllergy = acceptedSuggestions > 0;
+  const allergyResources = clinicalSuggestions.filter((suggestion) => suggestion.accepted && suggestion.resourceType === "AllergyIntolerance").length;
+  const willCreateAllergy = allergyResources > 0;
 
   async function handleSave() {
     setSaving(true);
@@ -95,8 +95,8 @@ export default function SaveConfirmation({
             <strong>{unansweredAnswers}</strong>
           </div>
           <div>
-            <span>Accepted AllergyIntolerance suggestions</span>
-            <strong>{acceptedSuggestions}</strong>
+            <span>AllergyIntolerance resources</span>
+            <strong>{allergyResources}</strong>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ export default function SaveConfirmation({
           <ul className="plain-list">
             <li>1 Encounter</li>
             <li>1 QuestionnaireResponse</li>
-            {willCreateAllergy && <li>{acceptedSuggestions} AllergyIntolerance</li>}
+            {willCreateAllergy && <li>{allergyResources} AllergyIntolerance</li>}
           </ul>
         </div>
 

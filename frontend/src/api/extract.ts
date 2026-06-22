@@ -52,7 +52,7 @@ function mapAnswer(answer: BackendExtractedAnswer, item: QuestionnaireItem): Ext
     value: normalizeExtractedValue(answer.value, item),
     confidence: answer.confidence,
     evidence: answer.evidence,
-    status: "needs-review"
+    status: "extracted"
   };
 }
 
@@ -72,6 +72,7 @@ function mapClinicalSuggestion(suggestion: BackendClinicalSuggestion, index: num
   return {
     id: `suggestion-${index + 1}-${suggestion.resourceType}`,
     resourceType: suggestion.resourceType,
+    source: "ai",
     summary: suggestionSummary(suggestion),
     confidence: suggestion.confidence,
     evidence: suggestion.evidence,

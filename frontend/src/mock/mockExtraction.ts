@@ -21,7 +21,7 @@ function answer(item: QuestionnaireItem, value: ExtractedValue, confidence: numb
     value,
     confidence,
     evidence,
-    status: confidence >= 0.85 ? "accepted" : "needs-review"
+    status: "extracted"
   };
 }
 
@@ -130,6 +130,7 @@ export function extractMock(questionnaire: Questionnaire, transcript: string) {
     clinicalSuggestions.push({
       id: "suggestion-allergy-penicillin",
       resourceType: "AllergyIntolerance",
+      source: "ai",
       summary: mentionsRash ? "Penicillin allergy with rash reaction" : "Penicillin allergy",
       confidence: mentionsRash ? 0.91 : 0.82,
       evidence: evidenceFor(transcript, "penicillin", "Patient reported penicillin allergy."),

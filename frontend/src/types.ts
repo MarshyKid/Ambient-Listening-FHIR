@@ -201,7 +201,7 @@ export interface BackendExtractResponse {
   clinicalSuggestions: BackendClinicalSuggestion[];
 }
 
-export type ReviewStatus = "accepted" | "rejected" | "unanswered" | "needs-review";
+export type ReviewStatus = "extracted" | "edited" | "unanswered";
 
 export type ExtractedValue = string | number | boolean | ChoiceOption | null;
 
@@ -218,6 +218,7 @@ export interface ExtractedAnswer {
 export interface ClinicalSuggestion {
   id: string;
   resourceType: "AllergyIntolerance" | "Condition" | "MedicationStatement";
+  source?: "ai" | "manual";
   summary: string;
   confidence: number;
   evidence: string;

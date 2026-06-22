@@ -1,7 +1,8 @@
 import { useState, type ChangeEvent } from "react";
-import type { ChoiceOption, ClinicalSuggestion, ExtractedAnswer, ExtractedValue, PatientSummary, Questionnaire, QuestionnaireItem } from "../types";
+import type { ClinicalSuggestion, ExtractedAnswer, ExtractedValue, PatientSummary, Questionnaire, QuestionnaireItem } from "../types";
 import { buildQuestionnaireResponsePreview } from "../mock/mockApi";
 import { flattenAnswerableItems, hasAnswerValue, manualEntryEvidence } from "../utils/questionnaireItems";
+import { choiceOptionDisplay, choiceOptionInputValue, choiceOptionKey, selectedChoiceInputValue } from "../utils/choiceOptions";
 import ConfidenceBadge from "./ConfidenceBadge";
 
 interface ReviewExtractionProps {
@@ -22,13 +23,9 @@ interface ReviewSection {
   items: QuestionnaireItem[];
 }
 
-function isChoice(value: ExtractedValue): value is ChoiceOption {
-  return Boolean(value && typeof value === "object" && "code" in value);
-}
-
 function displayValue(value: ExtractedValue) {
   if (value === null || value === undefined) return "";
-  if (isChoice(value)) return value.display;
+  if (typeof value === "object" && "display" in value) return value.display;
   return String(value);
 }
 
@@ -161,11 +158,11 @@ function ReviewQuestionRow({
     }
     if (item.type === "choice") {
       return (
-        <select value={isChoice(answer.value) ? answer.value.code : ""} onChange={(event) => onValueChange(item, event)}>
+        <select value={selectedChoiceInputValue(answer.value, item.options)} onChange={(event) => onValueChange(item, event)}>
           <option value="">Unanswered</option>
-          {item.options?.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.display}
+          {item.options?.map((option, index) => (
+            <option key={choiceOptionKey(option, index)} value={choiceOptionInputValue(option)}>
+              {choiceOptionDisplay(option)}
             </option>
           ))}
         </select>
@@ -352,7 +349,7 @@ export default function ReviewExtraction({
       value = raw === "" ? null : raw === "true";
     }
     if (item.type === "choice") {
-      value = item.options?.find((option) => option.code === raw) ?? null;
+      value = item.options?.find((option) => choiceOptionInputValue(option) === raw) ?? null;
     }
 
     updateAnswer(item.linkId, {

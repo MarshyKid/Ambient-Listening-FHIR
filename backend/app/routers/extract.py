@@ -5,6 +5,7 @@ from app.schemas.extract import ExtractRequest, ExtractResponse, ExtractedAnswer
 from app.services.extraction_service import ExtractionService
 from app.services.fhir_client import FhirClient
 from app.services.questionnaire_service import QuestionnaireService
+from app.services.llm_service import LlmService
 
 router = APIRouter(prefix="/api/extract", tags=["extract"])
 
@@ -44,7 +45,8 @@ and return
 
 def extraction_service(settings: Settings = Depends(get_settings)) -> ExtractionService:
     client = FhirClient(settings)
-    return ExtractionService(QuestionnaireService(client, settings))
+    llmservice = LlmService(settings)
+    return ExtractionService(QuestionnaireService(client, settings), llmservice)
 
 
 @router.get("")

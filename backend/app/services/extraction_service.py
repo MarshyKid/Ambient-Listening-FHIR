@@ -1,21 +1,30 @@
 import re
 from fastapi import HTTPException
 
-from app.fhir.questionnaire_mapper import questionnaire_items_by_link_id, find_choice_coding
+from app.fhir.questionnaire_mapper import find_choice_answer, questionnaire_items_by_link_id
 from app.schemas.extract import ExtractRequest, ExtractResponse, ExtractedAnswerCandidate, ClinicalSuggestionCandidate
 from app.services.questionnaire_service import QuestionnaireService
+from app.services.llm_service import LlmService
 
 
 class ExtractionService:
-    def __init__(self, questionnaire_service: QuestionnaireService) -> None:
+    def __init__(self, questionnaire_service: QuestionnaireService, llm_service: LlmService) -> None:
         self.questionnaire_service = questionnaire_service
+        self.llm_service = llm_service
 
     async def extract(self, request: ExtractRequest) -> ExtractResponse:
         questionnaire = await self.questionnaire_service.read_questionnaire_resource(request.questionnaireId)
+        questionnaire_items = ExtractionService.questionnaire_prompt_items(questionnaire)
 
-        raw_result = self._fake_extract(request.transcript)
+        #raw_result = self._fake_extract(request.transcript)
+        raw_llm_json = await self.llm_service.extract_answers(
+            transcript = request.transcript,
+            questionnaire_items=questionnaire_items
+        )
+        parsed = ExtractResponse.model_validate(raw_llm_json)
+        validated = self._validate_result(parsed, questionnaire)
 
-        return self._validate_result(raw_result, questionnaire)
+        return validated
 
     def questionnaire_prompt_items(questionnaire: dict) -> list[dict]:
         items_by_link_id = questionnaire_items_by_link_id(questionnaire)
@@ -32,11 +41,7 @@ class ExtractionService:
             }
 
             if item.get("answerOption"):
-                prompt_item["options"] = [
-                    option.get("valueCoding")
-                    for option in item.get("answerOption", [])
-                    if option.get("valueCoding")
-                ]
+                prompt_item["options"] = _choice_prompt_options(item)
 
             prompt_items.append(prompt_item)
 
@@ -51,7 +56,7 @@ class ExtractionService:
         if "penicillin" in lower:
             answers.append(
                 ExtractedAnswerCandidate(
-                    linkId="allergy-substance",
+                    linkId="2.1",
                     valueType="string",
                     value="Penicillin",
                     confidence=0.9,
@@ -122,13 +127,7 @@ class ExtractionService:
             if not isinstance(answer.value, dict):
                 raise HTTPException(status_code=422, detail=f"Expected choice object for {answer.linkId}.")
 
-            system = answer.value.get("system")
-            code = answer.value.get("code")
-
-            if not system or not code:
-                raise HTTPException(status_code=422, detail=f"Choice answer requires system and code for {answer.linkId}.")
-
-            if not find_choice_coding(item, str(system), str(code)):
+            if not find_choice_answer(item, answer.value):
                 raise HTTPException(
                     status_code=422,
                     detail=f"Choice answer does not match Questionnaire options for {answer.linkId}.",
@@ -144,3 +143,26 @@ def _is_fhir_datetime(value: str) -> bool:
             value,
         )
     )
+
+
+def _choice_prompt_options(item: dict) -> list[dict]:
+    options: list[dict] = []
+    for option in item.get("answerOption") or []:
+        if option.get("valueCoding"):
+            coding = option["valueCoding"]
+            options.append(
+                {
+                    "fhirValueType": "valueCoding",
+                    "system": coding.get("system"),
+                    "code": coding.get("code"),
+                    "display": coding.get("display") or coding.get("code"),
+                }
+            )
+        elif "valueString" in option:
+            value = str(option["valueString"])
+            options.append({"fhirValueType": "valueString", "value": value, "display": value})
+        elif "valueInteger" in option:
+            raise HTTPException(status_code=422, detail="Unsupported Questionnaire answerOption type for Phase 1/2: valueInteger")
+        elif "valueDate" in option:
+            raise HTTPException(status_code=422, detail="Unsupported Questionnaire answerOption type for Phase 1/2: valueDate")
+    return options

@@ -3,14 +3,14 @@ import type { ChoiceOption, Questionnaire } from "../types";
 const snomed = "http://snomed.info/sct";
 
 export const smokingOptions: ChoiceOption[] = [
-  { system: snomed, code: "266919005", display: "Never smoked" },
-  { system: snomed, code: "8517006", display: "Former smoker" },
-  { system: snomed, code: "77176002", display: "Current smoker" }
+  { fhirValueType: "valueCoding", system: snomed, code: "266919005", display: "Never smoked" },
+  { fhirValueType: "valueCoding", system: snomed, code: "8517006", display: "Former smoker" },
+  { fhirValueType: "valueCoding", system: snomed, code: "77176002", display: "Current smoker" }
 ];
 
 export const yesNoOptions: ChoiceOption[] = [
-  { system: snomed, code: "373066001", display: "Yes" },
-  { system: snomed, code: "373067005", display: "No" }
+  { fhirValueType: "valueCoding", system: snomed, code: "373066001", display: "Yes" },
+  { fhirValueType: "valueCoding", system: snomed, code: "373067005", display: "No" }
 ];
 
 export const mockQuestionnaires: Questionnaire[] = [

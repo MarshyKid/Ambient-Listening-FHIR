@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import { apiGet } from "./http";
 import { flattenAnswerableItems } from "../utils/questionnaireItems";
+import { normalizeChoiceOption } from "../utils/choiceOptions";
 
 type QuestionnaireStatus = QuestionnaireSummary["status"];
 
@@ -27,7 +28,7 @@ interface BackendQuestionnaireItem {
   linkId: string;
   text: string;
   type: string;
-  options?: ChoiceOption[] | null;
+  options?: unknown[] | null;
   items?: BackendQuestionnaireItem[] | null;
 }
 
@@ -97,9 +98,17 @@ function normalizeItem(item: BackendQuestionnaireItem): QuestionnaireItem {
     linkId: item.linkId,
     text: item.text,
     type: normalizeItemType(item.type),
-    options: item.options ?? undefined,
+    options: normalizeOptions(item.options),
     items: item.items?.map(normalizeItem)
   };
+}
+
+function normalizeOptions(options: unknown[] | null | undefined): ChoiceOption[] | undefined {
+  const normalized = options?.flatMap((option) => {
+    const choice = normalizeChoiceOption(option);
+    return choice ? [choice] : [];
+  });
+  return normalized?.length ? normalized : undefined;
 }
 
 function normalizeStatus(status: string | null | undefined): QuestionnaireStatus {

@@ -2,7 +2,6 @@ import type {
   AcceptedSuggestionRequest,
   BackendSaveRequest,
   BackendSaveResponse,
-  ChoiceOption,
   ClinicalSuggestion,
   ExtractedAnswer,
   PatientSummary,
@@ -12,6 +11,7 @@ import type {
 } from "../types";
 import { hasAnswerValue } from "../utils/questionnaireItems";
 import { normalizeFhirDateTime } from "../utils/fhirDateTime";
+import { normalizeChoiceOption } from "../utils/choiceOptions";
 import { apiBaseUrl, defaultPractitionerIdentifier } from "./config";
 
 export class BackendApiError extends Error {
@@ -94,10 +94,18 @@ function normalizedAnswerValue(answer: ExtractedAnswer): unknown {
     return typeof answer.value === "boolean" ? answer.value : undefined;
   }
   if (answer.itemType === "choice") {
-    if (isChoice(answer.value)) {
+    const choice = normalizeChoiceOption(answer.value);
+    if (choice?.fhirValueType === "valueCoding") {
       return {
-        system: answer.value.system,
-        code: answer.value.code
+        fhirValueType: "valueCoding",
+        system: choice.system,
+        code: choice.code
+      };
+    }
+    if (choice?.fhirValueType === "valueString") {
+      return {
+        fhirValueType: "valueString",
+        value: choice.value
       };
     }
     return undefined;
@@ -116,10 +124,6 @@ function toAcceptedSuggestionRequest(suggestion: ClinicalSuggestion): AcceptedSu
       fields: suggestion.fields
     }
   ];
-}
-
-function isChoice(value: unknown): value is ChoiceOption {
-  return Boolean(value && typeof value === "object" && "system" in value && "code" in value);
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {

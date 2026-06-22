@@ -207,7 +207,9 @@ Rules:
 - Do not infer facts that are not stated in the transcript.
 - Only use linkIds from the provided questionnaireItems.
 - If an answer is not mentioned, omit it from answers.
-- For choice answers, use only the exact system and code from the provided options.
+- For choice answers, return an object using the exact fhirValueType and values from the provided options.
+- For coded choice options, use {"fhirValueType":"valueCoding","system":"...","code":"..."}.
+- For string choice options, use {"fhirValueType":"valueString","value":"..."}.
 - For date values, use YYYY-MM-DD.
 - For dateTime values, use full FHIR dateTime with seconds and timezone, for example 2026-06-19T15:23:00+08:00.
 - Evidence should be a short quote or close paraphrase from the transcript.
@@ -272,10 +274,26 @@ EXTRACTION_OUTPUT_SCHEMA: dict[str, Any] = {
                                 "type": "object",
                                 "additionalProperties": False,
                                 "properties": {
+                                    "fhirValueType": {
+                                        "type": "string",
+                                        "enum": ["valueCoding"],
+                                    },
                                     "system": {"type": "string"},
                                     "code": {"type": "string"},
                                 },
-                                "required": ["system", "code"],
+                                "required": ["fhirValueType", "system", "code"],
+                            },
+                            {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    "fhirValueType": {
+                                        "type": "string",
+                                        "enum": ["valueString"],
+                                    },
+                                    "value": {"type": "string"},
+                                },
+                                "required": ["fhirValueType", "value"],
                             },
                         ]
                     },

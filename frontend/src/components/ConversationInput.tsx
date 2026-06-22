@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ExtractionResult, PatientSummary, Questionnaire, QuestionnaireItem, SampleTranscript } from "../types";
+import { extractFromTranscript } from "../api/extract";
 import { listSampleTranscripts } from "../mock/mockApi";
 import { buildManualReviewResult, countGroups, flattenAnswerableItems } from "../utils/questionnaireItems";
 
@@ -20,8 +21,11 @@ export default function ConversationInput({
 }: ConversationInputProps) {
   const [samples, setSamples] = useState<SampleTranscript[]>([]);
   const [sampleId, setSampleId] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const answerableItems = flattenAnswerableItems(questionnaire.items);
   const groupCount = countGroups(questionnaire.items);
+  const hasTranscript = transcript.trim().length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +49,19 @@ export default function ConversationInput({
 
   function handleStartManualReview() {
     onExtracted(buildManualReviewResult(questionnaire));
+  }
+
+  async function handleExtractTranscript() {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const result = await extractFromTranscript({ questionnaire, transcript });
+      onExtracted(result);
+    } catch (error) {
+      setExtractError(error instanceof Error ? error.message : "Extraction failed.");
+    } finally {
+      setExtracting(false);
+    }
   }
 
   function renderQuestionnaireOutline(items: QuestionnaireItem[]) {
@@ -124,8 +141,18 @@ export default function ConversationInput({
 
       <div className="footer-actions">
         {answerableItems.length === 0 && <span className="continue-helper">This questionnaire has no answerable items.</span>}
-        <button className="primary-button" type="button" onClick={handleStartManualReview} disabled={answerableItems.length === 0}>
+        {answerableItems.length > 0 && !hasTranscript && <span className="continue-helper">Extraction needs transcript text.</span>}
+        {extractError && <span className="query-error">{extractError}</span>}
+        <button className="secondary-button" type="button" onClick={handleStartManualReview} disabled={answerableItems.length === 0 || extracting}>
           Start Manual Review
+        </button>
+        <button
+          className="primary-button"
+          type="button"
+          onClick={() => void handleExtractTranscript()}
+          disabled={answerableItems.length === 0 || !hasTranscript || extracting}
+        >
+          {extracting ? "Extracting..." : "Extract & Review"}
         </button>
       </div>
     </section>

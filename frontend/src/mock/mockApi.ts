@@ -22,6 +22,7 @@ import { mockPatients } from "./mockPatients";
 import { mockQuestionnaires } from "./mockQuestionnaires";
 import { mockTranscripts } from "./mockTranscripts";
 import { flattenAnswerableItems, hasAnswerValue } from "../utils/questionnaireItems";
+import { normalizeChoiceOption } from "../utils/choiceOptions";
 
 let patients: PatientSummary[] = [...mockPatients];
 let patientCounter = patients.length + 1;
@@ -117,13 +118,19 @@ function toFhirQuestionnaireItem(item: Questionnaire["items"][number]): FhirQues
     text: item.text,
     type: item.type,
     required: item.required,
-    answerOption: item.options?.map((option) => ({
-      valueCoding: {
-        system: option.system,
-        code: option.code,
-        display: option.display
-      }
-    })),
+    answerOption: item.options?.map((option) =>
+      option.fhirValueType === "valueCoding"
+        ? {
+            valueCoding: {
+              system: option.system,
+              code: option.code,
+              display: option.display
+            }
+          }
+        : {
+            valueString: option.value
+          }
+    ),
     item: item.items?.map(toFhirQuestionnaireItem)
   };
 }
@@ -353,8 +360,14 @@ function answerToFhirValue(answer: ExtractedAnswer): FhirQuestionnaireResponseAn
   if (answer.itemType === "dateTime" && typeof answer.value === "string") {
     return { valueDateTime: answer.value };
   }
-  if (answer.itemType === "choice" && typeof answer.value === "object" && "code" in answer.value) {
-    return { valueCoding: answer.value };
+  if (answer.itemType === "choice") {
+    const choice = normalizeChoiceOption(answer.value);
+    if (choice?.fhirValueType === "valueCoding") {
+      return { valueCoding: { system: choice.system, code: choice.code, display: choice.display } };
+    }
+    if (choice?.fhirValueType === "valueString") {
+      return { valueString: choice.value };
+    }
   }
   if ((answer.itemType === "string" || answer.itemType === "text") && typeof answer.value === "string") {
     return { valueString: answer.value };

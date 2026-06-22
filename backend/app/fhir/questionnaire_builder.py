@@ -66,8 +66,12 @@ def _validate_request(request: CreateQuestionnaireRequest) -> None:
             if not item.options:
                 raise ValueError(f"Choice item {link_id} requires at least one option.")
             for option in item.options:
-                if not option.system.strip() or not option.code.strip() or not option.display.strip():
-                    raise ValueError(f"Choice item {link_id} options require system, code, and display.")
+                if option.fhirValueType == "valueCoding":
+                    if not option.system or not option.system.strip() or not option.code or not option.code.strip() or not option.display.strip():
+                        raise ValueError(f"Choice item {link_id} valueCoding options require system, code, and display.")
+                elif option.fhirValueType == "valueString":
+                    if not option.value or not option.value.strip() or not option.display.strip():
+                        raise ValueError(f"Choice item {link_id} valueString options require value and display.")
         elif item.options:
             raise ValueError(f"Only choice items can include options: {link_id}")
 
@@ -81,13 +85,18 @@ def _build_item(item) -> dict:
     if item.required is not None:
         resource_item["required"] = item.required
     if item.type == "choice":
-        resource_item["answerOption"] = [
-            {"valueCoding": {"system": option.system.strip(), "code": option.code.strip(), "display": option.display.strip()}}
-            for option in item.options or []
-        ]
+        resource_item["answerOption"] = [_build_answer_option(option) for option in item.options or []]
     if item.type == "group":
         resource_item["item"] = [_build_item(child) for child in item.items or []]
     return resource_item
+
+
+def _build_answer_option(option) -> dict:
+    if option.fhirValueType == "valueCoding":
+        return {"valueCoding": {"system": option.system.strip(), "code": option.code.strip(), "display": option.display.strip()}}
+    if option.fhirValueType == "valueString":
+        return {"valueString": option.value.strip()}
+    raise ValueError(f"Unsupported choice option FHIR value type: {option.fhirValueType}")
 
 
 def _pascal_name(slug: str) -> str:

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from .common import ApiModel, FhirJson
 
 
 class ChoiceOption(ApiModel):
-    system: str
-    code: str
+    fhirValueType: Literal["valueCoding", "valueString"]
     display: str
+    system: str | None = None
+    code: str | None = None
+    value: str | None = None
 
 
 class QuestionnaireItem(ApiModel):

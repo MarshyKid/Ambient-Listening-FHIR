@@ -94,18 +94,61 @@ def find_choice_coding(item: dict, system: str, code: str) -> dict | None:
     return None
 
 
+def find_choice_answer(item: dict, value: dict) -> tuple[str, dict | str] | None:
+    fhir_value_type = value.get("fhirValueType")
+
+    if fhir_value_type == "valueCoding" or (not fhir_value_type and value.get("system") and value.get("code")):
+        system = value.get("system")
+        code = value.get("code")
+        if not system or not code:
+            return None
+        coding = find_choice_coding(item, str(system), str(code))
+        return ("valueCoding", coding) if coding else None
+
+    if fhir_value_type == "valueString":
+        submitted = value.get("value")
+        if not isinstance(submitted, str):
+            return None
+        for option in item.get("answerOption") or []:
+            if option.get("valueString") == submitted:
+                return "valueString", submitted
+        return None
+
+    return None
+
+
 def _choice_options(item: dict) -> list[ChoiceOption] | None:
     options: list[ChoiceOption] = []
+
     for option in item.get("answerOption") or []:
-        coding = option.get("valueCoding") or {}
-        if coding.get("system") and coding.get("code"):
+        if "valueCoding" in option:
+            coding = option.get("valueCoding") or {}
+            if coding.get("system") and coding.get("code"):
+                options.append(
+                    ChoiceOption(
+                        fhirValueType="valueCoding",
+                        system=str(coding["system"]),
+                        code=str(coding["code"]),
+                        display=str(coding.get("display") or coding["code"]),
+                    )
+                )
+
+        elif "valueString" in option:
+            value = str(option["valueString"])
             options.append(
                 ChoiceOption(
-                    system=str(coding["system"]),
-                    code=str(coding["code"]),
-                    display=str(coding.get("display") or coding["code"]),
+                    fhirValueType="valueString",
+                    value=value,
+                    display=value,
                 )
             )
+
+        elif "valueInteger" in option:
+            raise ValueError("Unsupported Questionnaire answerOption type for Phase 1/2: valueInteger")
+
+        elif "valueDate" in option:
+            raise ValueError("Unsupported Questionnaire answerOption type for Phase 1/2: valueDate")
+
     return options or None
 
 

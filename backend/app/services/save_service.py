@@ -9,7 +9,7 @@ from app.fhir.allergy_builder import build_allergy_intolerance
 from app.fhir.bundle_builder import build_transaction_bundle
 from app.fhir.encounter_builder import build_encounter, utc_now
 from app.fhir.questionnaire_mapper import (
-    find_choice_coding,
+    find_choice_answer,
     questionnaire_items_by_link_id,
 )
 from app.fhir.response_builder import build_questionnaire_response, build_response_item
@@ -180,21 +180,17 @@ class SaveService:
                 raise HTTPException(status_code=400, detail=f"Expected FHIR dateTime value for {answer.linkId}.")
             return build_response_item(link_id=answer.linkId, text=text, value_key="valueDateTime", value=answer.value)
         if answer.valueType == "choice":
-            coding = self._matched_choice(answer, item)
-            return build_response_item(link_id=answer.linkId, text=text, value_key="valueCoding", value=coding)
+            value_key, value = self._matched_choice(answer, item)
+            return build_response_item(link_id=answer.linkId, text=text, value_key=value_key, value=value)
         raise HTTPException(status_code=400, detail=f"Unsupported valueType: {answer.valueType}")
 
-    def _matched_choice(self, answer: ReviewedAnswer, item: dict) -> dict:
+    def _matched_choice(self, answer: ReviewedAnswer, item: dict) -> tuple[str, dict | str]:
         if not isinstance(answer.value, dict):
             raise HTTPException(status_code=400, detail=f"Expected choice object for {answer.linkId}.")
-        system = answer.value.get("system")
-        code = answer.value.get("code")
-        if not system or not code:
-            raise HTTPException(status_code=400, detail=f"Choice answer requires system and code for {answer.linkId}.")
-        coding = find_choice_coding(item, str(system), str(code))
-        if not coding:
+        matched = find_choice_answer(item, answer.value)
+        if not matched:
             raise HTTPException(status_code=400, detail=f"Choice answer does not match Questionnaire options for {answer.linkId}.")
-        return coding
+        return matched
 
     def _build_allergies(
         self,

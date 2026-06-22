@@ -25,13 +25,13 @@ export interface FhirPatient {
   birthDate: string;
 }
 
-export interface FhirAnswerOption {
-  valueCoding: {
-    system: string;
-    code: string;
-    display: string;
-  };
+export interface FhirCoding {
+  system: string;
+  code: string;
+  display?: string;
 }
+
+export type FhirAnswerOption = { valueCoding: FhirCoding } | { valueString: string };
 
 export interface FhirQuestionnaireItem {
   linkId: string;
@@ -98,7 +98,7 @@ export type FhirQuestionnaireResponseAnswer =
   | { valueInteger: number }
   | { valueDate: string }
   | { valueDateTime: string }
-  | { valueCoding: ChoiceOption };
+  | { valueCoding: FhirCoding };
 
 export interface FhirQuestionnaireResponseItem {
   linkId: string;
@@ -136,11 +136,20 @@ export interface CreatePatientInput {
 
 export type QuestionnaireItemType = "string" | "text" | "boolean" | "choice" | "integer" | "date" | "dateTime" | "group";
 
-export interface ChoiceOption {
+export interface CodedChoiceOption {
+  fhirValueType: "valueCoding";
   system: string;
   code: string;
   display: string;
 }
+
+export interface StringChoiceOption {
+  fhirValueType: "valueString";
+  value: string;
+  display: string;
+}
+
+export type ChoiceOption = CodedChoiceOption | StringChoiceOption;
 
 export interface QuestionnaireItem {
   linkId: string;
@@ -163,6 +172,33 @@ export interface QuestionnaireSummary {
 
 export interface Questionnaire extends Omit<QuestionnaireSummary, "itemCount"> {
   items: QuestionnaireItem[];
+}
+
+export interface BackendExtractRequest {
+  questionnaireId: string;
+  transcript: string;
+}
+
+export interface BackendExtractedAnswer {
+  linkId: string;
+  valueType: ReviewedAnswerValueType;
+  value: ExtractedValue;
+  confidence: number;
+  evidence: string;
+  status: "suggested";
+}
+
+export interface BackendClinicalSuggestion {
+  resourceType: "AllergyIntolerance";
+  accepted: false;
+  confidence: number;
+  evidence: string;
+  fields: Record<string, string>;
+}
+
+export interface BackendExtractResponse {
+  answers: BackendExtractedAnswer[];
+  clinicalSuggestions: BackendClinicalSuggestion[];
 }
 
 export type ReviewStatus = "accepted" | "rejected" | "unanswered" | "needs-review";

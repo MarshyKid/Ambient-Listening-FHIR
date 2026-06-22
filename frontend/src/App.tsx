@@ -89,7 +89,7 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Phase 0 demo</p>
+          <p className="eyebrow">demo</p>
           <h1>Ambient Listening to FHIR Resources</h1>
         </div>
       </header>

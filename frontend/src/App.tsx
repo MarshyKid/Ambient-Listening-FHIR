@@ -4,7 +4,7 @@ import AppShell from "./components/AppShell";
 import HomePage from "./components/HomePage";
 import IntakesPage from "./components/IntakesPage";
 import NewIntakeWizard from "./components/NewIntakeWizard";
-import PlaceholderPage from "./components/PlaceholderPage";
+import QuestionnairesPage from "./components/QuestionnairesPage";
 
 export default function App() {
   const [appView, setAppView] = useState<AppView>("home");
@@ -30,9 +30,7 @@ export default function App() {
 
         {appView === "intakes" && <IntakesPage onStartNewIntake={startNewIntake} />}
 
-        {appView === "questionnaires" && (
-          <PlaceholderPage eyebrow="Library" title="Questionnaire Library" text="Questionnaire management coming soon." />
-        )}
+        {appView === "questionnaires" && <QuestionnairesPage />}
 
         {appView === "new-intake" && <NewIntakeWizard key={newIntakeKey} />}
       </main>

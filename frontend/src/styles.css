@@ -231,6 +231,21 @@ code {
   background: var(--confirmed);
 }
 
+.dot.pending {
+  background: var(--ink-3);
+}
+
+.dot.error {
+  background: var(--attention);
+}
+
+.status-helper {
+  margin: -18px 0 30px;
+  color: var(--attention);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .launch-modes {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
@@ -1210,8 +1225,6 @@ textarea {
 }
 
 .review-summary-bar {
-  top: 12px;
-  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

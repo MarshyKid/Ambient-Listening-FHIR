@@ -87,8 +87,8 @@ export default function NewIntakeWizard() {
 
   return (
     <>
-      <Stepper steps={steps} currentStep={currentStep} onStepClick={handleStepClick} />
       <ActiveContextBar patient={selectedPatient} questionnaire={selectedQuestionnaire} answers={reviewedAnswers} />
+      <Stepper steps={steps} currentStep={currentStep} onStepClick={handleStepClick} />
 
       {currentStep === 0 && (
         <PatientSelection

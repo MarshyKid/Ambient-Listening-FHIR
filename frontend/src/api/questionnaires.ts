@@ -7,10 +7,13 @@ import type {
   QuestionnaireItemType
 } from "../types";
 import { apiGet } from "./http";
+import { fhirBaseUrl } from "./config";
 import { flattenAnswerableItems } from "../utils/questionnaireItems";
 import { normalizeChoiceOption } from "../utils/choiceOptions";
 
 type QuestionnaireStatus = QuestionnaireSummary["status"];
+
+export const defaultQuestionnaireSearchUrl = `${fhirBaseUrl}/Questionnaire?status=active&_count=100`;
 
 interface BackendQuestionnaireSummary {
   id: string;
@@ -71,6 +74,11 @@ export async function queryQuestionnairesFhir(requestUrl: string): Promise<Quest
 export async function getQuestionnaire(id: string): Promise<Questionnaire> {
   const result = await apiGet<BackendQuestionnaireDetailResult>(`/api/questionnaires/${encodeURIComponent(id)}`);
   return normalizeDetail(result.questionnaire);
+}
+
+export async function listActiveQuestionnaires(): Promise<QuestionnaireSummary[]> {
+  const result = await queryQuestionnairesFhir(defaultQuestionnaireSearchUrl);
+  return result.questionnaires;
 }
 
 function normalizeSummary(questionnaire: BackendQuestionnaireSummary): QuestionnaireSummary {

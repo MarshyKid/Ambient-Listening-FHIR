@@ -34,8 +34,8 @@ export default function AppShell({ activeView, onNavigate }: AppShellProps) {
 
       <span className="top-shell-spacer" />
       <div className="whoami">
-        <span className="avatar">NT</span>
-        Nora Tan - RN
+        <span className="avatar">JD</span>
+        Jane Doe - RN
       </div>
     </header>
   );

@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { fhirBaseUrl } from "../api/config";
 import type { Questionnaire, QuestionnaireQueryResult, QuestionnaireSummary } from "../types";
-import { getQuestionnaire, queryQuestionnairesFhir } from "../api/questionnaires";
-
-const defaultQuestionnaireRequestUrl = `${fhirBaseUrl}/Questionnaire?_count=10`;
+import { defaultQuestionnaireSearchUrl, getQuestionnaire, queryQuestionnairesFhir } from "../api/questionnaires";
 
 interface QuestionnaireSelectionProps {
   selectedQuestionnaire: Questionnaire | null;
@@ -16,7 +13,7 @@ export default function QuestionnaireSelection({
   onSelectQuestionnaire,
   onContinue
 }: QuestionnaireSelectionProps) {
-  const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireRequestUrl);
+  const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireSearchUrl);
   const [queryResult, setQueryResult] = useState<QuestionnaireQueryResult | null>(null);
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +31,7 @@ export default function QuestionnaireSelection({
   }
 
   useEffect(() => {
-    void runQuery(defaultQuestionnaireRequestUrl);
+    void runQuery(defaultQuestionnaireSearchUrl);
     // Initial questionnaire query only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

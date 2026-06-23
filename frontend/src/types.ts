@@ -92,6 +92,27 @@ export interface QuestionnaireQueryResult {
   error?: string;
 }
 
+export interface IntakeSummary {
+  id: string;
+  questionnaireResponseId: string;
+  patientId?: string | null;
+  patientName?: string | null;
+  patientMrn?: string | null;
+  questionnaire?: string | null;
+  questionnaireTitle?: string | null;
+  authored?: string | null;
+  status: string;
+}
+
+export interface IntakeQueryResult {
+  requestUrl: string;
+  status: number;
+  statusText: string;
+  intakes: IntakeSummary[];
+  bundle?: Record<string, unknown> | null;
+  error?: string;
+}
+
 export type FhirQuestionnaireResponseAnswer =
   | { valueString: string }
   | { valueBoolean: boolean }

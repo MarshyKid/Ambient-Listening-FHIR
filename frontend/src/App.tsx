@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AppView } from "./appView";
 import AppShell from "./components/AppShell";
 import HomePage from "./components/HomePage";
+import IntakesPage from "./components/IntakesPage";
 import NewIntakeWizard from "./components/NewIntakeWizard";
 import PlaceholderPage from "./components/PlaceholderPage";
 
@@ -27,15 +28,7 @@ export default function App() {
           />
         )}
 
-        {appView === "intakes" && (
-          <PlaceholderPage
-            eyebrow="Workspace"
-            title="Intakes"
-            text="Intake list coming soon."
-            actionLabel="Start new intake"
-            onAction={startNewIntake}
-          />
-        )}
+        {appView === "intakes" && <IntakesPage onStartNewIntake={startNewIntake} />}
 
         {appView === "questionnaires" && (
           <PlaceholderPage eyebrow="Library" title="Questionnaire Library" text="Questionnaire management coming soon." />

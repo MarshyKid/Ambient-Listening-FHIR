@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { queryIntakes } from "../api/intakes";
 import type { IntakeQueryResult, IntakeSummary } from "../types";
+import { formatAuthoredDateTime, isToday, normalizedStatus, sortIntakesNewestFirst, statusClass, statusLabel } from "../utils/intakes";
 
 type IntakeFilter = "all" | "completed" | "in-progress" | "today";
 
@@ -109,7 +110,7 @@ export default function IntakesPage({ onStartNewIntake }: IntakesPageProps) {
               </span>
               <span className="intake-when" role="cell">
                 <span className="mobile-label">Authored</span>
-                {formatAuthored(intake.authored)}
+                {formatAuthoredDateTime(intake.authored)}
               </span>
               <span role="cell">
                 <span className="mobile-label">Status</span>
@@ -174,16 +175,6 @@ function filterIntakes(intakes: IntakeSummary[], filter: IntakeFilter): IntakeSu
   return intakes.filter((intake) => isToday(intake.authored));
 }
 
-function sortIntakesNewestFirst(intakes: IntakeSummary[]): IntakeSummary[] {
-  return [...intakes].sort((left, right) => authoredTimestamp(right) - authoredTimestamp(left));
-}
-
-function authoredTimestamp(intake: IntakeSummary): number {
-  if (!intake.authored) return 0;
-  const timestamp = new Date(intake.authored).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
 function resultCountText(visibleCount: number, totalCount: number): string {
   if (totalCount > 0) return `${visibleCount} of ${totalCount}`;
   if (visibleCount === 0) return "No intakes";
@@ -193,50 +184,6 @@ function resultCountText(visibleCount: number, totalCount: number): string {
 
 function bundleTotal(bundle: Record<string, unknown> | null | undefined): number {
   return typeof bundle?.total === "number" ? bundle.total : 0;
-}
-
-function formatAuthored(authored: string | null | undefined): string {
-  if (!authored) return "Not recorded";
-  const date = new Date(authored);
-  if (Number.isNaN(date.getTime())) return authored;
-  return date.toLocaleString([], {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-
-function isToday(authored: string | null | undefined): boolean {
-  if (!authored) return false;
-  const date = new Date(authored);
-  if (Number.isNaN(date.getTime())) return false;
-  const now = new Date();
-  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
-}
-
-function normalizedStatus(status: string | null | undefined): string {
-  return String(status || "unknown").trim().toLowerCase().replace(/\s+/g, "-");
-}
-
-function statusClass(status: string | null | undefined): string {
-  const normalized = normalizedStatus(status);
-  if (normalized === "completed") return "done";
-  if (normalized === "in-progress") return "progress";
-  return "neutral";
-}
-
-function statusLabel(status: string | null | undefined): string {
-  const normalized = normalizedStatus(status);
-  if (normalized === "completed") return "Completed";
-  if (normalized === "in-progress") return "In progress";
-  if (normalized === "unknown") return "Unknown";
-  return normalized
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 function qrIdsSummary(intakes: IntakeSummary[]): string {

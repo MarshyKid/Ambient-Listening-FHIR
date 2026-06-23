@@ -417,6 +417,12 @@ code {
   background: #faf8f3;
 }
 
+.intake-feed-state {
+  margin: 0;
+  padding: 14px 18px;
+  color: var(--ink-2);
+}
+
 .feed-person {
   color: var(--ink);
   font-weight: 600;
@@ -450,9 +456,16 @@ code {
   font-size: 11px;
 }
 
-.feed-tag.saved {
+.feed-tag.saved,
+.feed-tag.done,
+.feed-tag.neutral {
   color: var(--confirmed);
   background: var(--confirmed-tint);
+}
+
+.feed-tag.progress {
+  color: #b07a1e;
+  background: #f6efdd;
 }
 
 .app-footnote {
@@ -640,7 +653,11 @@ code {
   font-weight: 600;
 }
 
-.intake-status-pill.done,
+.intake-status-pill.done {
+  color: var(--confirmed);
+  background: var(--confirmed-tint);
+}
+
 .intake-status-pill.neutral {
   color: #3e5366;
   background: #e8edf1;

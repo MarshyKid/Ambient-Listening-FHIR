@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { getFhirHealthStatus, type FhirHealthStatus } from "../api/health";
+import { queryIntakes } from "../api/intakes";
 import { listActiveQuestionnaires } from "../api/questionnaires";
+import type { IntakeSummary } from "../types";
+import { formatRelativeAuthored, isToday, sortIntakesNewestFirst, statusClass, statusLabel } from "../utils/intakes";
 
 interface HomePageProps {
   onStartNewIntake: () => void;
@@ -8,36 +11,15 @@ interface HomePageProps {
   onOpenQuestionnaires: () => void;
 }
 
-const recentIntakes = [
-  {
-    patient: "Stewart Paucek",
-    mrn: "MRN1042",
-    form: "Triage Allergy Assessment - v1",
-    when: "2 min ago",
-    status: "saved"
-  },
-  {
-    patient: "Sydney Murazik",
-    mrn: "MRN1039",
-    form: "Comprehensive Admission Triage - v1",
-    when: "14 min ago",
-    status: "saved"
-  },
-  {
-    patient: "Jane Doe",
-    mrn: "MRN1001",
-    form: "General Intake - v1.0.0",
-    when: "1 hr ago",
-    status: "saved"
-  }
-];
-
 export default function HomePage({ onStartNewIntake, onOpenIntakes, onOpenQuestionnaires }: HomePageProps) {
   const [healthStatus, setHealthStatus] = useState<FhirHealthStatus | null>(null);
   const [isHealthLoading, setIsHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [questionnaireCount, setQuestionnaireCount] = useState<number | null>(null);
   const [isQuestionnaireCountLoading, setIsQuestionnaireCountLoading] = useState(true);
+  const [recentIntakes, setRecentIntakes] = useState<IntakeSummary[]>([]);
+  const [isRecentIntakesLoading, setIsRecentIntakesLoading] = useState(true);
+  const [recentIntakesError, setRecentIntakesError] = useState<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -78,8 +60,28 @@ export default function HomePage({ onStartNewIntake, onOpenIntakes, onOpenQuesti
       }
     }
 
+    async function loadRecentIntakes() {
+      try {
+        const result = await queryIntakes();
+        if (!ignore) {
+          setRecentIntakes(result.intakes);
+          setRecentIntakesError(result.error ?? null);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setRecentIntakes([]);
+          setRecentIntakesError(error instanceof Error ? error.message : "Unable to load recent intakes.");
+        }
+      } finally {
+        if (!ignore) {
+          setIsRecentIntakesLoading(false);
+        }
+      }
+    }
+
     loadHealthStatus();
     loadQuestionnaireCount();
+    loadRecentIntakes();
 
     return () => {
       ignore = true;
@@ -96,6 +98,12 @@ export default function HomePage({ onStartNewIntake, onOpenIntakes, onOpenQuesti
     : questionnaireCount === null
       ? "Unavailable"
       : `${questionnaireCount} active`;
+  const savedTodayLabel = isRecentIntakesLoading
+    ? "Checking..."
+    : recentIntakesError
+      ? "Unavailable"
+      : intakeCountLabel(recentIntakes.filter((intake) => isToday(intake.authored)).length);
+  const homeRecentIntakes = sortIntakesNewestFirst(recentIntakes).slice(0, 3);
 
   return (
     <>
@@ -120,7 +128,7 @@ export default function HomePage({ onStartNewIntake, onOpenIntakes, onOpenQuesti
         </div>
         <div className="status-cell">
           <span className="status-key">Saved today</span>
-          <span className="status-value">Demo data</span>
+          <span className="status-value">{savedTodayLabel}</span>
         </div>
       </section>
       {!isHealthLoading && !healthIsOk && (
@@ -157,17 +165,25 @@ export default function HomePage({ onStartNewIntake, onOpenIntakes, onOpenQuesti
       </div>
 
       <section className="intake-feed" aria-label="Recent intakes">
-        {recentIntakes.map((intake) => (
-          <button key={`${intake.patient}-${intake.mrn}`} className="intake-feed-item" type="button" onClick={onOpenIntakes}>
-            <span className="feed-person">
-              {intake.patient} <span className="mono">- {intake.mrn}</span>
-            </span>
-            <span className="feed-form">{intake.form}</span>
-            <span className="feed-when">
-              {intake.when} <span className="feed-tag saved">{intake.status}</span>
-            </span>
-          </button>
-        ))}
+        {isRecentIntakesLoading ? (
+          <p className="intake-feed-state">Loading recent intakes...</p>
+        ) : recentIntakesError ? (
+          <p className="intake-feed-state">Unable to load recent intakes.</p>
+        ) : homeRecentIntakes.length === 0 ? (
+          <p className="intake-feed-state">No saved intakes yet.</p>
+        ) : (
+          homeRecentIntakes.map((intake) => (
+            <button key={intake.id || intake.questionnaireResponseId} className="intake-feed-item" type="button" onClick={onOpenIntakes}>
+              <span className="feed-person">
+                {intake.patientName || "Unknown Patient"} <span className="mono">- {intake.patientMrn || "MRN unavailable"}</span>
+              </span>
+              <span className="feed-form">{intake.questionnaireTitle || intake.questionnaire || "Unknown questionnaire"}</span>
+              <span className="feed-when">
+                {formatRelativeAuthored(intake.authored)} <span className={`feed-tag ${statusClass(intake.status)}`}>{statusLabel(intake.status)}</span>
+              </span>
+            </button>
+          ))
+        )}
       </section>
 
       <p className="app-footnote">Demo environment - synthetic patients only - no real PHI</p>
@@ -180,4 +196,9 @@ function formatFhirVersion(status: FhirHealthStatus | null): string {
   if (!status.fhirVersion) return "Unknown";
   const release = status.fhirRelease && status.fhirRelease !== "unknown" ? status.fhirRelease : "FHIR";
   return `${release} \u00b7 ${status.fhirVersion}`;
+}
+
+function intakeCountLabel(count: number): string {
+  if (count === 1) return "1 intake";
+  return `${count} intakes`;
 }

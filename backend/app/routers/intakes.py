@@ -5,7 +5,7 @@ from app.schemas.intake import IntakeQueryResult
 from app.services.intake_service import IntakeService
 from app.services.fhir_client import FhirClient
 
-router = APIRouter(prefix="/api/intake", tags=["intake"])
+router = APIRouter(prefix="/api/intakes", tags=["intakes"])
 
 
 def intake_service(settings: Settings = Depends(get_settings)) -> IntakeService:

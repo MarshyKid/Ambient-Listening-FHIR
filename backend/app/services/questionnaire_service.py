@@ -13,7 +13,6 @@ class QuestionnaireService:
         self.settings = settings
 
     async def list_questionnaires(self, request_url: str | None = None) -> QuestionnaireQueryResult:
-        include_all_returned = bool(request_url)
         if request_url:
             response = await self.client.search_by_url(request_url, "Questionnaire")
         else:
@@ -26,8 +25,6 @@ class QuestionnaireService:
         for entry in bundle.get("entry") or []:
             resource = entry.get("resource") or {}
             if resource.get("resourceType") != "Questionnaire":
-                continue
-            if not include_all_returned and not str(resource.get("url") or "").startswith(prefix):
                 continue
             try:
                 summaries.append(map_questionnaire_summary(resource, item_count=count_answerable_items(resource.get("item") or [])))

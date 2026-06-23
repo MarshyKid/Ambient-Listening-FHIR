@@ -830,6 +830,10 @@ code {
   background: #faf8f3;
 }
 
+.questionnaire-row.selected {
+  background: #f3f7fb;
+}
+
 .questionnaire-title-cell {
   display: grid;
   gap: 3px;
@@ -913,57 +917,327 @@ code {
   color: var(--ink-2);
 }
 
-.questionnaire-detail-panel {
+.questionnaire-demo-panel {
+  margin-top: 18px;
+}
+
+.questionnaire-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(22, 32, 44, 0.22);
+}
+
+.questionnaire-drawer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(620px, calc(100vw - 32px));
+  height: 100%;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: -12px 0 40px rgba(22, 32, 44, 0.12);
+}
+
+.questionnaire-drawer-header {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
 
-.questionnaire-detail-header {
+.questionnaire-drawer-titlebar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
 }
 
-.questionnaire-detail-header h2 {
-  margin: 0;
+.questionnaire-drawer-header h2 {
+  margin: 0 0 12px;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 21px;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.questionnaire-fhir-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: max-content;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.questionnaire-fhir-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.questionnaire-fhir-toggle-track {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background 0.12s ease;
+}
+
+.questionnaire-fhir-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(22, 32, 44, 0.22);
+  transition: transform 0.12s ease;
+}
+
+.questionnaire-fhir-toggle input:checked + .questionnaire-fhir-toggle-track {
+  background: var(--primary);
+}
+
+.questionnaire-fhir-toggle input:checked + .questionnaire-fhir-toggle-track::after {
+  transform: translateX(15px);
+}
+
+.questionnaire-drawer-body {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  overflow: auto;
+  padding: 22px 26px 40px;
+}
+
+.questionnaire-drawer-section {
+  display: grid;
+  gap: 12px;
+}
+
+.questionnaire-drawer-section h3 {
+  margin: 0 0 -8px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 19px;
   font-weight: 600;
 }
 
-.questionnaire-detail-grid {
+.questionnaire-preview-caption {
+  margin: 0 0 6px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.questionnaire-drawer-state {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--ink-2);
+}
+
+.questionnaire-drawer-state.error {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  border-color: #e9c8c5;
+  background: #fff7f6;
+}
+
+.questionnaire-drawer-state.error p {
+  margin: 0;
+  color: #a43d35;
+  font-weight: 600;
+}
+
+.questionnaire-drawer-state.error span {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.questionnaire-question-list {
+  display: grid;
+  gap: 0;
+}
+
+.questionnaire-question-row {
+  display: grid;
+  gap: 8px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.questionnaire-question-list > .questionnaire-question-row:first-child {
+  padding-top: 0;
+}
+
+.questionnaire-question-row:last-child {
+  border-bottom: 0;
+}
+
+.questionnaire-question-text {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.questionnaire-question-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+  margin: 14px 0;
+}
+
+.questionnaire-group-header {
+  display: grid;
+  gap: 7px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.questionnaire-group-items {
+  padding: 2px 16px;
+}
+
+.questionnaire-group-items .questionnaire-question-row {
+  padding: 14px 0;
+}
+
+.questionnaire-answer-preview {
+  margin-top: 3px;
+}
+
+.questionnaire-question-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.questionnaire-question-meta span {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 7px;
+  color: var(--ink-3);
+  background: var(--panel-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.questionnaire-question-fhir {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.questionnaire-item-fhir-detail {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+}
+
+.questionnaire-item-fhir-detail summary {
+  padding: 7px 9px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.questionnaire-item-fhir-detail pre {
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  padding: 0 9px 9px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.questionnaire-option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.questionnaire-option-list li,
+.questionnaire-boolean-preview span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.questionnaire-option-list li {
+  padding: 4px 13px;
+}
+
+.questionnaire-boolean-preview {
+  display: flex;
+  gap: 7px;
+}
+
+.questionnaire-boolean-preview span {
+  padding: 4px 13px;
+}
+
+.questionnaire-answer-placeholder {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.questionnaire-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   margin: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
+  background: var(--panel);
 }
 
-.questionnaire-detail-grid div {
+.questionnaire-metadata-grid div {
   min-width: 0;
   padding: 11px 13px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
-.questionnaire-detail-grid div:nth-child(3n) {
+.questionnaire-metadata-grid div:nth-child(2n) {
   border-right: 0;
 }
 
-.questionnaire-detail-grid div:nth-last-child(-n + 3) {
+.questionnaire-metadata-grid div:nth-last-child(-n + 2) {
   border-bottom: 0;
 }
 
-.questionnaire-detail-grid dt {
+.questionnaire-metadata-grid dt {
   margin-bottom: 4px;
   color: var(--ink-3);
   font-family: var(--font-mono);
@@ -972,16 +1246,12 @@ code {
   text-transform: uppercase;
 }
 
-.questionnaire-detail-grid dd {
+.questionnaire-metadata-grid dd {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: 12.5px;
-}
-
-.questionnaire-demo-panel {
-  margin-top: 18px;
 }
 
 .app-header {
@@ -2263,22 +2533,26 @@ code {
     justify-items: start;
   }
 
-  .questionnaire-detail-header {
+  .questionnaire-drawer {
+    width: min(100vw, 620px);
+  }
+
+  .questionnaire-drawer-titlebar {
     flex-direction: column;
   }
 
-  .questionnaire-detail-grid {
+  .questionnaire-metadata-grid {
     grid-template-columns: 1fr;
   }
 
-  .questionnaire-detail-grid div,
-  .questionnaire-detail-grid div:nth-child(3n),
-  .questionnaire-detail-grid div:nth-last-child(-n + 3) {
+  .questionnaire-metadata-grid div,
+  .questionnaire-metadata-grid div:nth-child(2n),
+  .questionnaire-metadata-grid div:nth-last-child(-n + 2) {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
-  .questionnaire-detail-grid div:last-child {
+  .questionnaire-metadata-grid div:last-child {
     border-bottom: 0;
   }
 

@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { defaultQuestionnaireSearchUrl, queryQuestionnairesFhir } from "../api/questionnaires";
-import type { QuestionnaireQueryResult, QuestionnaireSummary } from "../types";
+import {
+  defaultQuestionnaireSearchUrl,
+  getQuestionnaireDetail,
+  queryQuestionnairesFhir,
+  type QuestionnaireDetailViewResult
+} from "../api/questionnaires";
+import { choiceOptionDisplay, choiceOptionKey } from "../utils/choiceOptions";
+import { countGroups, flattenAnswerableItems } from "../utils/questionnaireItems";
+import type { ChoiceOption, Questionnaire, QuestionnaireItem, QuestionnaireQueryResult, QuestionnaireSummary } from "../types";
 
 export default function QuestionnairesPage() {
   const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireSearchUrl);
@@ -8,6 +15,9 @@ export default function QuestionnairesPage() {
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailResult, setDetailResult] = useState<QuestionnaireDetailViewResult | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   async function runQuery(nextRequestUrl = requestUrl) {
     setLoading(true);
@@ -28,7 +38,52 @@ export default function QuestionnairesPage() {
     () => questionnaires.find((questionnaire) => questionnaire.id === selectedId) ?? null,
     [questionnaires, selectedId]
   );
-  const selectedRawResource = selectedQuestionnaire ? rawQuestionnaireResource(queryResult, selectedQuestionnaire.id) : null;
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetailResult(null);
+      setDetailError(null);
+      setDetailLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetailResult(null);
+
+    getQuestionnaireDetail(selectedId)
+      .then((result) => {
+        if (cancelled) return;
+        setDetailResult(result);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setDetailError(error instanceof Error ? error.message : "Questionnaire detail request failed.");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedId(null);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedId]);
+
   const responseBody = queryResult ? JSON.stringify(queryResult.bundle, null, 2) : "";
   const statusText = queryResult
     ? `${queryResult.status} ${queryResult.statusText} - Bundle - ${queryResult.bundle.total} entries`
@@ -73,15 +128,15 @@ export default function QuestionnairesPage() {
           </div>
         ) : (
           questionnaires.map((questionnaire) => (
-            <div key={questionnaire.id} className="questionnaire-row" role="row">
+            <div key={questionnaire.id} className={`questionnaire-row ${selectedId === questionnaire.id ? "selected" : ""}`} role="row">
               <span className="questionnaire-title-cell" role="cell">
                 <span className="mobile-label">Title</span>
                 <strong>{questionnaire.title || "Untitled questionnaire"}</strong>
                 <span className="questionnaire-muted">{questionnaire.description}</span>
               </span>
               <span className="questionnaire-meta-cell" role="cell">
-                <span className="mobile-label">Slug / FHIR ID</span>
-                {questionnaireSlug(questionnaire)}
+                <span className="mobile-label">FHIR ID</span>
+                {questionnaire.id}
               </span>
               <span className="questionnaire-meta-cell" role="cell">
                 <span className="mobile-label">Version</span>
@@ -107,51 +162,13 @@ export default function QuestionnairesPage() {
       </div>
 
       {selectedQuestionnaire && (
-        <section className="questionnaire-detail-panel" aria-label="Selected questionnaire detail">
-          <div className="questionnaire-detail-header">
-            <div>
-              <p className="page-label">Selected questionnaire</p>
-              <h2>{selectedQuestionnaire.title || "Untitled questionnaire"}</h2>
-            </div>
-            <button className="secondary-button" type="button" onClick={() => setSelectedId(null)}>
-              Close
-            </button>
-          </div>
-
-          <dl className="questionnaire-detail-grid">
-            <div>
-              <dt>FHIR ID</dt>
-              <dd>{selectedQuestionnaire.id}</dd>
-            </div>
-            <div>
-              <dt>Slug</dt>
-              <dd>{questionnaireSlug(selectedQuestionnaire)}</dd>
-            </div>
-            <div>
-              <dt>Version</dt>
-              <dd>{formatVersion(selectedQuestionnaire.version)}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{selectedQuestionnaire.status}</dd>
-            </div>
-            <div>
-              <dt>Items</dt>
-              <dd>{itemCountText(selectedQuestionnaire.itemCount)}</dd>
-            </div>
-            <div>
-              <dt>URL</dt>
-              <dd>{selectedQuestionnaire.url || "No canonical URL"}</dd>
-            </div>
-          </dl>
-
-          {selectedRawResource && (
-            <details className="raw-response">
-              <summary>Raw FHIR Questionnaire resource</summary>
-              <pre>{JSON.stringify(selectedRawResource, null, 2)}</pre>
-            </details>
-          )}
-        </section>
+        <QuestionnaireDrawer
+          summary={selectedQuestionnaire}
+          detailResult={detailResult}
+          loading={detailLoading}
+          error={detailError}
+          onClose={() => setSelectedId(null)}
+        />
       )}
 
       <details className="intake-demo-panel questionnaire-demo-panel">
@@ -194,18 +211,242 @@ export default function QuestionnairesPage() {
   );
 }
 
-function questionnaireSlug(questionnaire: QuestionnaireSummary): string {
-  const path = safeUrlPath(questionnaire.url).replace(/\/$/, "");
-  const parts = path.split("/").filter(Boolean);
-  const slug = parts.length ? parts[parts.length - 1] : "";
-  return slug || questionnaire.id;
+interface QuestionnaireDrawerProps {
+  summary: QuestionnaireSummary;
+  detailResult: QuestionnaireDetailViewResult | null;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
 }
 
-function safeUrlPath(url: string): string {
+function QuestionnaireDrawer({ summary, detailResult, loading, error, onClose }: QuestionnaireDrawerProps) {
+  const [showFhirDetails, setShowFhirDetails] = useState(false);
+  const questionnaire = detailResult?.questionnaire;
+  const title = questionnaire?.title || summary.title || "Untitled questionnaire";
+  const status = questionnaire?.status ?? summary.status;
+  const resource = detailResult?.resource;
+  const rawItemsByLinkId = useMemo(() => rawQuestionnaireItemsByLinkId(resource), [resource]);
+
+  return (
+    <div className="questionnaire-drawer-backdrop" onClick={onClose}>
+      <aside
+        className="questionnaire-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="questionnaire-drawer-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="questionnaire-drawer-header">
+          <div className="questionnaire-drawer-titlebar">
+            <div>
+              <p className="page-label">Selected questionnaire</p>
+              <h2 id="questionnaire-drawer-title">{title}</h2>
+              <span className={`questionnaire-status-badge ${questionnaireStatusClass(status)}`}>{status}</span>
+            </div>
+            <button className="secondary-button" type="button" onClick={onClose}>
+              Close
+            </button>
+          </div>
+          <label className="questionnaire-fhir-toggle">
+            <input type="checkbox" checked={showFhirDetails} onChange={(event) => setShowFhirDetails(event.target.checked)} />
+            <span className="questionnaire-fhir-toggle-track" aria-hidden="true" />
+            <span>Show FHIR detail</span>
+          </label>
+        </header>
+
+        <div className="questionnaire-drawer-body">
+          {loading ? (
+            <p className="questionnaire-drawer-state">Loading questionnaire details...</p>
+          ) : error ? (
+            <div className="questionnaire-drawer-state error">
+              <p>Unable to load questionnaire details.</p>
+              <span>{error}</span>
+            </div>
+          ) : questionnaire ? (
+            <>
+              <section className="questionnaire-drawer-section">
+                <h3>Questions</h3>
+                <p className="questionnaire-preview-caption">
+                  Read-only preview of what this form asks - {itemCountText(flattenAnswerableItems(questionnaire.items).length)} -{" "}
+                  {groupCountText(countGroups(questionnaire.items))}
+                </p>
+                {questionnaire.items.length > 0 ? (
+                  <div className="questionnaire-question-list">
+                    {questionnaire.items.map((item, index) => (
+                      <QuestionnaireQuestionCard
+                        key={`${item.linkId}:${index}`}
+                        item={item}
+                        rawItemsByLinkId={rawItemsByLinkId}
+                        showFhirDetails={showFhirDetails}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="questionnaire-drawer-state">Question details are not available.</p>
+                )}
+              </section>
+
+              <section className="questionnaire-drawer-section">
+                <h3>Metadata</h3>
+                <QuestionnaireMetadata questionnaire={questionnaire} />
+              </section>
+
+              {resource !== undefined && (
+                <details className="raw-response">
+                  <summary>Raw FHIR Questionnaire resource</summary>
+                  <pre>{JSON.stringify(resource, null, 2)}</pre>
+                </details>
+              )}
+            </>
+          ) : (
+            <p className="questionnaire-drawer-state">Question details are not available.</p>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+interface QuestionnaireQuestionCardProps {
+  item: QuestionnaireItem;
+  rawItemsByLinkId: Map<string, unknown>;
+  showFhirDetails: boolean;
+}
+
+function QuestionnaireQuestionCard({ item, rawItemsByLinkId, showFhirDetails }: QuestionnaireQuestionCardProps) {
+  const isGroup = item.type === "group";
+  const rawItem = rawItemsByLinkId.get(item.linkId);
+
+  if (isGroup) {
+    return (
+      <section className="questionnaire-question-group">
+        <div className="questionnaire-group-header">
+          <div className="questionnaire-question-text">{item.text || "Untitled group"}</div>
+          {showFhirDetails && <QuestionnaireFhirDetails item={item} rawItem={rawItem} />}
+        </div>
+        <div className="questionnaire-group-items">
+          {item.items && item.items.length > 0 ? (
+            item.items.map((child, index) => (
+              <QuestionnaireQuestionCard
+                key={`${child.linkId}:${index}`}
+                item={child}
+                rawItemsByLinkId={rawItemsByLinkId}
+                showFhirDetails={showFhirDetails}
+              />
+            ))
+          ) : (
+            <p className="questionnaire-answer-placeholder">No nested questions.</p>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <article className="questionnaire-question-row">
+      <div className="questionnaire-question-text">{item.text || "Untitled item"}</div>
+      {showFhirDetails && <QuestionnaireFhirDetails item={item} rawItem={rawItem} />}
+      <QuestionnaireAnswerPreview item={item} />
+    </article>
+  );
+}
+
+function QuestionnaireFhirDetails({ item, rawItem }: { item: QuestionnaireItem; rawItem: unknown }) {
+  const required = item.required || rawItemRequired(rawItem);
+
+  return (
+    <div className="questionnaire-question-fhir">
+      <div className="questionnaire-question-meta">
+        <span>{item.type}</span>
+        {required && <span>required</span>}
+        <span>linkId {item.linkId}</span>
+      </div>
+
+      {rawItem !== undefined && (
+        <details className="questionnaire-item-fhir-detail">
+          <summary>FHIR item detail</summary>
+          <pre>{JSON.stringify(rawItem, null, 2)}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function QuestionnaireAnswerPreview({ item }: { item: QuestionnaireItem }) {
+  if (item.type === "choice") {
+    return item.options && item.options.length > 0 ? (
+      <ul className="questionnaire-answer-preview questionnaire-option-list">
+        {item.options.map((option, index) => (
+          <li key={choiceOptionKey(option, index)}>{choiceOptionLabel(option)}</li>
+        ))}
+      </ul>
+    ) : (
+      <p className="questionnaire-answer-placeholder">No options available.</p>
+    );
+  }
+
+  if (item.type === "boolean") {
+    return (
+      <div className="questionnaire-answer-preview questionnaire-boolean-preview" aria-label="Read-only boolean answer preview">
+        <span>Yes</span>
+        <span>No</span>
+      </div>
+    );
+  }
+
+  return <p className="questionnaire-answer-placeholder">{answerPlaceholder(item.type)}</p>;
+}
+
+function QuestionnaireMetadata({ questionnaire }: { questionnaire: Questionnaire }) {
+  const canonicalUrl = realCanonicalUrl(questionnaire.url, questionnaire.id);
+
+  return (
+    <dl className="questionnaire-metadata-grid">
+      <div>
+        <dt>FHIR ID</dt>
+        <dd>{questionnaire.id}</dd>
+      </div>
+      {canonicalUrl && (
+        <div>
+          <dt>Canonical URL</dt>
+          <dd>{canonicalUrl}</dd>
+        </div>
+      )}
+      <div>
+        <dt>Version</dt>
+        <dd>{formatVersion(questionnaire.version)}</dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>{questionnaire.status}</dd>
+      </div>
+      <div>
+        <dt>Items</dt>
+        <dd>{itemCountText(flattenAnswerableItems(questionnaire.items).length)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function choiceOptionLabel(option: ChoiceOption): string {
+  return choiceOptionDisplay(option);
+}
+
+function answerPlaceholder(type: QuestionnaireItem["type"]): string {
+  if (type === "integer") return "Number answer";
+  if (type === "date") return "Date answer";
+  if (type === "dateTime") return "Date/time answer";
+  if (type === "text") return "Long text answer";
+  return "Text answer";
+}
+
+function realCanonicalUrl(url: string, id: string): string | null {
+  if (!url || url === id || /^\d+$/.test(url)) return null;
   try {
-    return new URL(url).pathname;
+    const parsed = new URL(url);
+    return parsed.protocol && parsed.host ? url : null;
   } catch {
-    return url;
+    return null;
   }
 }
 
@@ -217,15 +458,37 @@ function itemCountText(itemCount: number): string {
   return itemCount === 1 ? "1 item" : `${itemCount} items`;
 }
 
+function groupCountText(groupCount: number): string {
+  return groupCount === 1 ? "1 group" : `${groupCount} groups`;
+}
+
+function rawQuestionnaireItemsByLinkId(resource: unknown): Map<string, unknown> {
+  const byLinkId = new Map<string, unknown>();
+  if (!resource || typeof resource !== "object") return byLinkId;
+  const items = (resource as { item?: unknown }).item;
+  collectRawQuestionnaireItems(items, byLinkId);
+  return byLinkId;
+}
+
+function collectRawQuestionnaireItems(items: unknown, byLinkId: Map<string, unknown>) {
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as { linkId?: unknown; item?: unknown };
+    if (typeof record.linkId === "string") {
+      byLinkId.set(record.linkId, item);
+    }
+    collectRawQuestionnaireItems(record.item, byLinkId);
+  }
+}
+
+function rawItemRequired(rawItem: unknown): boolean {
+  return Boolean(rawItem && typeof rawItem === "object" && (rawItem as { required?: unknown }).required === true);
+}
+
 function questionnaireStatusClass(status: QuestionnaireSummary["status"]): string {
   if (status === "active") return "active";
   if (status === "draft") return "draft";
   if (status === "retired") return "retired";
   return "unknown";
-}
-
-function rawQuestionnaireResource(result: QuestionnaireQueryResult | null, questionnaireId: string): Record<string, unknown> | null {
-  const resource = result?.bundle.entry?.find((entry) => entry.resource?.resourceType === "Questionnaire" && entry.resource.id === questionnaireId)
-    ?.resource;
-  return resource && resource.resourceType === "Questionnaire" ? (resource as unknown as Record<string, unknown>) : null;
 }

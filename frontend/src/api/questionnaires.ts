@@ -31,6 +31,7 @@ interface BackendQuestionnaireItem {
   linkId: string;
   text: string;
   type: string;
+  required?: boolean | null;
   options?: unknown[] | null;
   items?: BackendQuestionnaireItem[] | null;
 }
@@ -44,7 +45,13 @@ interface BackendQuestionnaireQueryResult extends Omit<QuestionnaireQueryResult,
 }
 
 interface BackendQuestionnaireDetailResult {
+  resource?: unknown;
   questionnaire: BackendQuestionnaireDetail;
+}
+
+export interface QuestionnaireDetailViewResult {
+  questionnaire: Questionnaire;
+  resource?: unknown;
 }
 
 export async function queryQuestionnairesFhir(requestUrl: string): Promise<QuestionnaireQueryResult> {
@@ -72,8 +79,16 @@ export async function queryQuestionnairesFhir(requestUrl: string): Promise<Quest
 }
 
 export async function getQuestionnaire(id: string): Promise<Questionnaire> {
+  const result = await getQuestionnaireDetail(id);
+  return result.questionnaire;
+}
+
+export async function getQuestionnaireDetail(id: string): Promise<QuestionnaireDetailViewResult> {
   const result = await apiGet<BackendQuestionnaireDetailResult>(`/api/questionnaires/${encodeURIComponent(id)}`);
-  return normalizeDetail(result.questionnaire);
+  return {
+    questionnaire: normalizeDetail(result.questionnaire),
+    resource: result.resource
+  };
 }
 
 export async function listActiveQuestionnaires(): Promise<QuestionnaireSummary[]> {
@@ -106,6 +121,7 @@ function normalizeItem(item: BackendQuestionnaireItem): QuestionnaireItem {
     linkId: item.linkId,
     text: item.text,
     type: normalizeItemType(item.type),
+    required: item.required ?? undefined,
     options: normalizeOptions(item.options),
     items: item.items?.map(normalizeItem)
   };

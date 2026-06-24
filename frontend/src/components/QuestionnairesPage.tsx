@@ -154,7 +154,6 @@ export default function QuestionnairesPage() {
                 <button className="link-button" type="button" onClick={() => setSelectedId(questionnaire.id)}>
                   View
                 </button>
-                <span className="questionnaire-muted">{questionnaire.status === "active" ? "Available for intake" : "Read-only for now"}</span>
               </span>
             </div>
           ))
@@ -203,10 +202,6 @@ export default function QuestionnairesPage() {
         </div>
       </details>
 
-      <p className="app-footnote">
-        Questionnaires are treated as versioned templates. Once responses exist, structural edits should create a new version so saved
-        QuestionnaireResponses remain interpretable.
-      </p>
     </section>
   );
 }

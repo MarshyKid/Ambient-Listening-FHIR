@@ -797,7 +797,7 @@ code {
 .questionnaire-table-head,
 .questionnaire-row {
   display: grid;
-  grid-template-columns: 2fr 1.4fr 0.7fr 0.9fr 0.8fr 120px;
+  grid-template-columns: minmax(280px, 3fr) 0.8fr 0.9fr 0.8fr 120px;
   gap: 16px;
   align-items: center;
 }

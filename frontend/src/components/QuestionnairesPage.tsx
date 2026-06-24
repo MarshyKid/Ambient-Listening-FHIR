@@ -108,7 +108,6 @@ export default function QuestionnairesPage() {
         {!loading && questionnaires.length > 0 && (
           <div className="questionnaire-table-head" role="row">
             <span role="columnheader">Title</span>
-            <span role="columnheader">FHIR ID</span>
             <span role="columnheader">Version</span>
             <span role="columnheader">Status</span>
             <span role="columnheader">Questions</span>
@@ -127,36 +126,36 @@ export default function QuestionnairesPage() {
             <p>No questionnaires found.</p>
           </div>
         ) : (
-          questionnaires.map((questionnaire) => (
-            <div key={questionnaire.id} className={`questionnaire-row ${selectedId === questionnaire.id ? "selected" : ""}`} role="row">
-              <span className="questionnaire-title-cell" role="cell">
-                <span className="mobile-label">Title</span>
-                <strong>{questionnaire.title || "Untitled questionnaire"}</strong>
-                <span className="questionnaire-muted">{questionnaire.description}</span>
-              </span>
-              <span className="questionnaire-meta-cell" role="cell">
-                <span className="mobile-label">FHIR ID</span>
-                {questionnaire.id}
-              </span>
-              <span className="questionnaire-meta-cell" role="cell">
-                <span className="mobile-label">Version</span>
-                {formatVersion(questionnaire.version)}
-              </span>
-              <span role="cell">
-                <span className="mobile-label">Status</span>
-                <span className={`questionnaire-status-badge ${questionnaireStatusClass(questionnaire.status)}`}>{questionnaire.status}</span>
-              </span>
-              <span className="questionnaire-meta-cell" role="cell">
-                <span className="mobile-label">Questions</span>
-                {itemCountText(questionnaire.itemCount)}
-              </span>
-              <span className="questionnaire-action-cell" role="cell">
-                <button className="link-button" type="button" onClick={() => setSelectedId(questionnaire.id)}>
-                  View
-                </button>
-              </span>
-            </div>
-          ))
+          questionnaires.map((questionnaire) => {
+            const canonicalUrl = realCanonicalUrl(questionnaire.url, questionnaire.id);
+
+            return (
+              <div key={questionnaire.id} className={`questionnaire-row ${selectedId === questionnaire.id ? "selected" : ""}`} role="row">
+                <span className="questionnaire-title-cell" role="cell">
+                  <span className="mobile-label">Title</span>
+                  <strong>{questionnaire.title || "Untitled questionnaire"}</strong>
+                  {canonicalUrl && <span className="questionnaire-muted">{canonicalUrl}</span>}
+                </span>
+                <span className="questionnaire-meta-cell" role="cell">
+                  <span className="mobile-label">Version</span>
+                  {formatVersion(questionnaire.version)}
+                </span>
+                <span role="cell">
+                  <span className="mobile-label">Status</span>
+                  <span className={`questionnaire-status-badge ${questionnaireStatusClass(questionnaire.status)}`}>{questionnaire.status}</span>
+                </span>
+                <span className="questionnaire-meta-cell" role="cell">
+                  <span className="mobile-label">Questions</span>
+                  {itemCountText(questionnaire.itemCount)}
+                </span>
+                <span className="questionnaire-action-cell" role="cell">
+                  <button className="link-button" type="button" onClick={() => setSelectedId(questionnaire.id)}>
+                    View
+                  </button>
+                </span>
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -445,8 +444,9 @@ function realCanonicalUrl(url: string, id: string): string | null {
   }
 }
 
-function formatVersion(version: string): string {
-  return version ? `v${version}` : "Unversioned";
+function formatVersion(version?: string | null): string {
+  if (!version) return "Unversioned";
+  return version.startsWith("v") ? version : `v${version}`;
 }
 
 function itemCountText(itemCount: number): string {

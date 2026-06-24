@@ -258,13 +258,21 @@ def first_id(resources: list[CreatedResource], resource_type: str) -> str | None
 
 
 def questionnaire_response_questionnaire_reference(questionnaire: dict) -> str:
+    url = str(questionnaire.get("url") or "").strip()
+    version = str(questionnaire.get("version") or "").strip()
     questionnaire_id = questionnaire.get("id")
-    if not questionnaire_id:
-        raise HTTPException(
-            status_code=500,
-            detail="Questionnaire.id is required to build QuestionnaireResponse.questionnaire.",
-        )
-    return f"Questionnaire/{questionnaire_id}"
+
+    if url and version:
+        return f"{url}|{version}"
+    if url:
+        return url
+    if questionnaire_id:
+        return f"Questionnaire/{questionnaire_id}"
+
+    raise HTTPException(
+        status_code=500,
+        detail="Questionnaire.url or Questionnaire.id is required to build QuestionnaireResponse.questionnaire.",
+    )
 
 
 def _http_exception_message(exc: HTTPException) -> str:

@@ -15,19 +15,15 @@ def derive_slug(url: str | None) -> str:
     return slug
 
 
-def require_questionnaire_url_version(resource: dict) -> tuple[str, str]:
-    url = resource.get("url", _require_id(resource))
-    version = resource.get("version") or (resource.get("meta") or {}).get("versionId")
-    if not url:
-        raise ValueError("Questionnaire.url is required.")
-    if not version:
-        raise ValueError("Questionnaire.version is required.")
-    return str(url), str(version)
+def questionnaire_url_version(resource: dict) -> tuple[str, str]:
+    url = resource.get("url") or _require_id(resource)
+    version = resource.get("version")
+    return str(url), str(version) if version else ""
 
 
 def map_questionnaire_summary(resource: dict, item_count: int | None = None) -> QuestionnaireSummary:
     fhir_id = _require_id(resource)
-    url, version = require_questionnaire_url_version(resource)
+    url, version = questionnaire_url_version(resource)
     return QuestionnaireSummary(
         id=fhir_id,
         fhirId=fhir_id,

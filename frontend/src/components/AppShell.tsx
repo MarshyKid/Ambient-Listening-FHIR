@@ -7,6 +7,7 @@ interface AppShellProps {
 
 export default function AppShell({ activeView, onNavigate }: AppShellProps) {
   const intakeIsActive = activeView === "intakes" || activeView === "new-intake";
+  const questionnairesIsActive = activeView === "questionnaires" || activeView === "questionnaire-builder";
 
   return (
     <header className="top-shell">
@@ -25,7 +26,7 @@ export default function AppShell({ activeView, onNavigate }: AppShellProps) {
         </button>
         <button
           type="button"
-          aria-current={activeView === "questionnaires" ? "page" : undefined}
+          aria-current={questionnairesIsActive ? "page" : undefined}
           onClick={() => onNavigate("questionnaires")}
         >
           Questionnaires

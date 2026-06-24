@@ -9,7 +9,11 @@ import { choiceOptionDisplay, choiceOptionKey } from "../utils/choiceOptions";
 import { countGroups, flattenAnswerableItems } from "../utils/questionnaireItems";
 import type { ChoiceOption, Questionnaire, QuestionnaireItem, QuestionnaireQueryResult, QuestionnaireSummary } from "../types";
 
-export default function QuestionnairesPage() {
+interface QuestionnairesPageProps {
+  onCreateQuestionnaire: () => void;
+}
+
+export default function QuestionnairesPage({ onCreateQuestionnaire }: QuestionnairesPageProps) {
   const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireSearchUrl);
   const [queryResult, setQueryResult] = useState<QuestionnaireQueryResult | null>(null);
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireSummary[]>([]);
@@ -97,8 +101,8 @@ export default function QuestionnairesPage() {
           <h1>Questionnaires</h1>
         </div>
         <div className="questionnaire-workspace-actions">
-          <span className="questionnaire-builder-note">Builder coming soon. Seeded FHIR Questionnaires are listed here for now.</span>
-          <button className="primary-button" type="button" disabled title="Builder coming soon">
+          <span className="questionnaire-builder-note">Start a new draft in the questionnaire builder preview.</span>
+          <button className="primary-button" type="button" onClick={onCreateQuestionnaire}>
             + New questionnaire
           </button>
         </div>

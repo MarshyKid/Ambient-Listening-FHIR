@@ -6,7 +6,8 @@ import type {
   QuestionnaireSummary,
   QuestionnaireItemType
 } from "../types";
-import { apiGet } from "./http";
+import type { CreateQuestionnaireRequest } from "../utils/questionnaireBuilder";
+import { apiGet, apiPost } from "./http";
 import { fhirBaseUrl } from "./config";
 import { flattenAnswerableItems } from "../utils/questionnaireItems";
 import { normalizeChoiceOption } from "../utils/choiceOptions";
@@ -49,9 +50,23 @@ interface BackendQuestionnaireDetailResult {
   questionnaire: BackendQuestionnaireDetail;
 }
 
+interface BackendCreateQuestionnaireResult extends BackendQuestionnaireDetailResult {
+  requestUrl?: string | null;
+  status: number;
+  statusText: string;
+  created: boolean;
+}
+
 export interface QuestionnaireDetailViewResult {
   questionnaire: Questionnaire;
   resource?: unknown;
+}
+
+export interface CreateQuestionnaireResult extends QuestionnaireDetailViewResult {
+  requestUrl?: string | null;
+  status: number;
+  statusText: string;
+  created: boolean;
 }
 
 export async function queryQuestionnairesFhir(requestUrl: string): Promise<QuestionnaireQueryResult> {
@@ -86,6 +101,23 @@ export async function getQuestionnaire(id: string): Promise<Questionnaire> {
 export async function getQuestionnaireDetail(id: string): Promise<QuestionnaireDetailViewResult> {
   const result = await apiGet<BackendQuestionnaireDetailResult>(`/api/questionnaires/${encodeURIComponent(id)}`);
   return {
+    questionnaire: normalizeDetail(result.questionnaire),
+    resource: result.resource
+  };
+}
+
+export async function createQuestionnaire(request: CreateQuestionnaireRequest): Promise<CreateQuestionnaireResult> {
+  const result = await apiPost<BackendCreateQuestionnaireResult>("/api/questionnaires", request);
+  if (!result.created) {
+    throw new Error(
+      "A questionnaire with this canonical URL already exists. Change the title to create a different canonical URL and try again."
+    );
+  }
+  return {
+    requestUrl: result.requestUrl,
+    status: result.status,
+    statusText: result.statusText,
+    created: result.created,
     questionnaire: normalizeDetail(result.questionnaire),
     resource: result.resource
   };

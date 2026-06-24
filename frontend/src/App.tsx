@@ -4,6 +4,7 @@ import AppShell from "./components/AppShell";
 import HomePage from "./components/HomePage";
 import IntakesPage from "./components/IntakesPage";
 import NewIntakeWizard from "./components/NewIntakeWizard";
+import QuestionnaireBuilderPage from "./components/QuestionnaireBuilderPage";
 import QuestionnairesPage from "./components/QuestionnairesPage";
 
 export default function App() {
@@ -30,7 +31,16 @@ export default function App() {
 
         {appView === "intakes" && <IntakesPage onStartNewIntake={startNewIntake} />}
 
-        {appView === "questionnaires" && <QuestionnairesPage />}
+        {appView === "questionnaires" && (
+          <QuestionnairesPage onCreateQuestionnaire={() => setAppView("questionnaire-builder")} />
+        )}
+
+        {appView === "questionnaire-builder" && (
+          <QuestionnaireBuilderPage
+            onBack={() => setAppView("questionnaires")}
+            onSaved={() => setAppView("questionnaires")}
+          />
+        )}
 
         {appView === "new-intake" && <NewIntakeWizard key={newIntakeKey} />}
       </main>

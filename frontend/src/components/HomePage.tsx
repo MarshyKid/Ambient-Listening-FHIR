@@ -186,7 +186,7 @@ export default function HomePage({ onStartNewIntake, onOpenIntakes, onOpenQuesti
         )}
       </section>
 
-      <p className="app-footnote">Demo environment - synthetic patients only - no real PHI</p>
+      <p className="app-footnote">Demo environment - synthetic patients only</p>
     </>
   );
 }

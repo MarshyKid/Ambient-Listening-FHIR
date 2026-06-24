@@ -304,7 +304,7 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
       </div>
 
       <p className="questionnaire-builder-footnote">
-        Demo environment - FHIR generation, validation, and persistence are deferred.
+        Demo environment
       </p>
     </section>
   );
@@ -560,7 +560,7 @@ function BuilderPreviewPanel({ activeTab, onTabChange, questions, previewResult 
         </p>
       </div>
       <p className="questionnaire-builder-preview-note">
-        Preview answers are not saved. This Questionnaire will be created as active.
+        This Questionnaire will be created as active.
       </p>
     </aside>
   );

@@ -90,7 +90,8 @@ export function generateUniqueLinkId(
   questions: BuilderQuestion[],
   currentQuestionId?: string
 ): string {
-  const base = slugifyIdentifier(text) || "new-question";
+  const base = slugifyIdentifier(text);
+  if (!base) return "";
   const existing = questions
     .filter((question) => question.id !== currentQuestionId)
     .map((question) => question.linkId);
@@ -103,8 +104,9 @@ export function generateUniqueOptionCode(
   options: BuilderChoiceOption[],
   currentOptionId?: string
 ): string {
-  const questionPart = slugifyIdentifier(questionLinkId) || "question";
-  const optionPart = slugifyIdentifier(display) || "option";
+  const questionPart = slugifyIdentifier(questionLinkId);
+  const optionPart = slugifyIdentifier(display);
+  if (!questionPart || !optionPart) return "";
   const existing = options
     .filter((option) => option.id !== currentOptionId)
     .map((option) => option.code);
@@ -117,7 +119,7 @@ export function validateBuilderState(state: BuilderState): BuilderValidationIssu
   if (!state.title.trim()) {
     issues.push({ code: "title-required", message: "Questionnaire title is required.", scope: "metadata" });
   }
-  if (!state.slug.trim()) {
+  if (state.title.trim() && !state.slug.trim()) {
     issues.push({
       code: "canonical-required",
       message: "A canonical URL cannot be derived from the questionnaire title.",
@@ -145,14 +147,7 @@ export function validateBuilderState(state: BuilderState): BuilderValidationIssu
         questionId: question.id
       });
     }
-    if (!linkId) {
-      issues.push({
-        code: "question-link-id-required",
-        message: `${questionName} needs a linkId.`,
-        scope: "question",
-        questionId: question.id
-      });
-    } else if ((linkIdCounts.get(linkId) ?? 0) > 1) {
+    if (linkId && (linkIdCounts.get(linkId) ?? 0) > 1) {
       issues.push({
         code: "question-link-id-duplicate",
         message: `linkId "${linkId}" must be unique.`,

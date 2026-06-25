@@ -101,7 +101,6 @@ export default function QuestionnairesPage({ onCreateQuestionnaire }: Questionna
           <h1>Questionnaires</h1>
         </div>
         <div className="questionnaire-workspace-actions">
-          <span className="questionnaire-builder-note">Start a new draft in the questionnaire builder preview.</span>
           <button className="primary-button" type="button" onClick={onCreateQuestionnaire}>
             + New questionnaire
           </button>

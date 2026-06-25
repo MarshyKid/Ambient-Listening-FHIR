@@ -78,6 +78,22 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
     }));
   }
 
+  function updateQuestionText(questionId: string, text: string) {
+    setDraft((current) => {
+      const question = current.questions.find((item) => item.id === questionId);
+      if (!question) return current;
+
+      const linkId = generateUniqueLinkId(text, current.questions, questionId);
+      const options = regenerateAllOptionCodes(linkId, question.options);
+      return {
+        ...current,
+        questions: current.questions.map((item) =>
+          item.id === questionId ? { ...item, text, linkId, options } : item
+        )
+      };
+    });
+  }
+
   function changeQuestionType(questionId: string, type: BuilderQuestionType) {
     setDraft((current) => ({
       ...current,
@@ -94,7 +110,7 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
 
   function addQuestion() {
     setDraft((current) => {
-      const linkId = generateUniqueLinkId("New question", current.questions);
+      const linkId = "";
       return {
         ...current,
         questions: [
@@ -102,7 +118,7 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
           {
             id: createInternalId("question"),
             linkId,
-            text: "New question",
+            text: "",
             type: "string",
             required: false,
             options: []
@@ -124,15 +140,14 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
       ...current,
       questions: current.questions.map((question) => {
         if (question.id !== questionId) return question;
-        const code = generateUniqueOptionCode(question.linkId, "New option", question.options);
         return {
           ...question,
           options: [
             ...question.options,
             {
               id: createInternalId("option"),
-              display: "New option",
-              code
+              display: "",
+              code: ""
             }
           ]
         };
@@ -148,61 +163,17 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
           ? {
               ...question,
               options: question.options.map((option) =>
-                option.id === optionId ? { ...option, display } : option
+                option.id === optionId
+                  ? {
+                      ...option,
+                      display,
+                      code: generateUniqueOptionCode(question.linkId, display, question.options, optionId)
+                    }
+                  : option
               )
             }
           : question
       )
-    }));
-  }
-
-  function updateOptionCode(questionId: string, optionId: string, code: string) {
-    setDraft((current) => ({
-      ...current,
-      questions: current.questions.map((question) =>
-        question.id === questionId
-          ? {
-              ...question,
-              options: question.options.map((option) =>
-                option.id === optionId ? { ...option, code } : option
-              )
-            }
-          : question
-      )
-    }));
-  }
-
-  function regenerateQuestionLinkId(questionId: string) {
-    setDraft((current) => ({
-      ...current,
-      questions: current.questions.map((question) =>
-        question.id === questionId
-          ? {
-              ...question,
-              linkId: generateUniqueLinkId(question.text, current.questions, question.id)
-            }
-          : question
-      )
-    }));
-  }
-
-  function regenerateOptionCode(questionId: string, optionId: string) {
-    setDraft((current) => ({
-      ...current,
-      questions: current.questions.map((question) => {
-        if (question.id !== questionId) return question;
-        return {
-          ...question,
-          options: question.options.map((option) =>
-            option.id === optionId
-              ? {
-                  ...option,
-                  code: generateUniqueOptionCode(question.linkId, option.display, question.options, option.id)
-                }
-              : option
-          )
-        };
-      })
     }));
   }
 
@@ -228,13 +199,18 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
       </nav>
 
       <header className="questionnaire-builder-header">
-        <input
-          className="questionnaire-builder-title"
-          aria-label="Questionnaire title"
-          value={draft.title}
-          onChange={(event) => updateTitle(event.target.value)}
-          placeholder="Untitled questionnaire"
-        />
+        <div className="questionnaire-builder-title-wrap">
+          <span className="questionnaire-builder-title-pencil" aria-hidden="true">
+            &#9998;
+          </span>
+          <input
+            className="questionnaire-builder-title"
+            aria-label="Questionnaire title"
+            value={draft.title}
+            onChange={(event) => updateTitle(event.target.value)}
+            placeholder="Name this questionnaire..."
+          />
+        </div>
         <div className="questionnaire-builder-actions">
           <span className="questionnaire-status-badge draft">{draft.status}</span>
           <button
@@ -268,9 +244,6 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
             <h2 id="builder-questions-title">Questions</h2>
             <span>{itemCountText(draft.questions.length)}</span>
           </div>
-          <p className="questionnaire-builder-pane-hint">
-            linkIds and option codes are generated once and stay fixed when display text changes.
-          </p>
 
           <div className="questionnaire-builder-items">
             {draft.questions.map((question) => (
@@ -279,13 +252,11 @@ export default function QuestionnaireBuilderPage({ onBack, onSaved }: Questionna
                 question={question}
                 issues={validationIssues.filter((issue) => issue.questionId === question.id)}
                 onChange={(changes) => updateQuestion(question.id, changes)}
-                onRegenerateLinkId={() => regenerateQuestionLinkId(question.id)}
+                onTextChange={(text) => updateQuestionText(question.id, text)}
                 onTypeChange={(type) => changeQuestionType(question.id, type)}
                 onDelete={() => removeQuestion(question.id)}
                 onAddOption={() => addOption(question.id)}
                 onUpdateOption={(optionId, display) => updateOption(question.id, optionId, display)}
-                onUpdateOptionCode={(optionId, code) => updateOptionCode(question.id, optionId, code)}
-                onRegenerateOptionCode={(optionId) => regenerateOptionCode(question.id, optionId)}
                 onRemoveOption={(optionId) => removeOption(question.id, optionId)}
               />
             ))}
@@ -350,13 +321,11 @@ interface BuilderQuestionCardProps {
   question: BuilderQuestion;
   issues: BuilderValidationIssue[];
   onChange: (changes: Partial<BuilderQuestion>) => void;
-  onRegenerateLinkId: () => void;
+  onTextChange: (text: string) => void;
   onTypeChange: (type: BuilderQuestionType) => void;
   onDelete: () => void;
   onAddOption: () => void;
   onUpdateOption: (optionId: string, display: string) => void;
-  onUpdateOptionCode: (optionId: string, code: string) => void;
-  onRegenerateOptionCode: (optionId: string) => void;
   onRemoveOption: (optionId: string) => void;
 }
 
@@ -364,16 +333,13 @@ function BuilderQuestionCard({
   question,
   issues,
   onChange,
-  onRegenerateLinkId,
+  onTextChange,
   onTypeChange,
   onDelete,
   onAddOption,
   onUpdateOption,
-  onUpdateOptionCode,
-  onRegenerateOptionCode,
   onRemoveOption
 }: BuilderQuestionCardProps) {
-  const [editingLinkId, setEditingLinkId] = useState(false);
   const invalidQuestion = issues.length > 0;
 
   return (
@@ -383,7 +349,7 @@ function BuilderQuestionCard({
         <input
           aria-label="Question text"
           value={question.text}
-          onChange={(event) => onChange({ text: event.target.value })}
+          onChange={(event) => onTextChange(event.target.value)}
           placeholder="Untitled question"
         />
         <select
@@ -403,28 +369,6 @@ function BuilderQuestionCard({
       </div>
 
       <div className="questionnaire-builder-question-details">
-        <div className="questionnaire-builder-identifier">
-          <span className="questionnaire-builder-identifier-label">linkId</span>
-          {editingLinkId ? (
-            <input
-              className="questionnaire-builder-identifier-input"
-              aria-label="Question linkId"
-              value={question.linkId}
-              onChange={(event) => onChange({ linkId: event.target.value })}
-              autoFocus
-            />
-          ) : (
-            <span className="questionnaire-builder-link-id">
-              <strong>{question.linkId || "Empty"}</strong> <span>- fixed</span>
-            </span>
-          )}
-          <div className="questionnaire-builder-identifier-actions">
-            <button type="button" onClick={() => setEditingLinkId((editing) => !editing)}>
-              {editingLinkId ? "Done" : "Edit"}
-            </button>
-            <button type="button" onClick={onRegenerateLinkId}>Regenerate from text</button>
-          </div>
-        </div>
         <label className="questionnaire-builder-required">
           <input
             type="checkbox"
@@ -443,8 +387,6 @@ function BuilderQuestionCard({
               questionText={question.text}
               option={option}
               onDisplayChange={(display) => onUpdateOption(option.id, display)}
-              onCodeChange={(code) => onUpdateOptionCode(option.id, code)}
-              onRegenerateCode={() => onRegenerateOptionCode(option.id)}
               onDelete={() => onRemoveOption(option.id)}
             />
           ))}
@@ -467,8 +409,6 @@ interface BuilderChoiceOptionRowProps {
   questionText: string;
   option: BuilderChoiceOption;
   onDisplayChange: (display: string) => void;
-  onCodeChange: (code: string) => void;
-  onRegenerateCode: () => void;
   onDelete: () => void;
 }
 
@@ -476,12 +416,8 @@ function BuilderChoiceOptionRow({
   questionText,
   option,
   onDisplayChange,
-  onCodeChange,
-  onRegenerateCode,
   onDelete
 }: BuilderChoiceOptionRowProps) {
-  const [editingCode, setEditingCode] = useState(false);
-
   return (
     <div className="questionnaire-builder-option-row">
       <input
@@ -490,26 +426,7 @@ function BuilderChoiceOptionRow({
         onChange={(event) => onDisplayChange(event.target.value)}
         placeholder="Option label"
       />
-      <div className="questionnaire-builder-option-code">
-        {editingCode ? (
-          <input
-            className="questionnaire-builder-identifier-input"
-            aria-label="Choice option code"
-            value={option.code}
-            onChange={(event) => onCodeChange(event.target.value)}
-            autoFocus
-          />
-        ) : (
-          <span>code: {option.code || "Empty"}</span>
-        )}
-        <div className="questionnaire-builder-identifier-actions">
-          <button type="button" onClick={() => setEditingCode((editing) => !editing)}>
-            {editingCode ? "Done" : "Edit"}
-          </button>
-          <button type="button" onClick={onRegenerateCode}>Regenerate code</button>
-        </div>
-      </div>
-      <button type="button" aria-label={`Delete option ${option.display || option.code}`} onClick={onDelete}>
+      <button type="button" aria-label={`Delete option ${option.display || "Untitled option"}`} onClick={onDelete}>
         x
       </button>
     </div>
@@ -682,17 +599,31 @@ function createInternalId(prefix: string): string {
   return globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function regenerateAllOptionCodes(
+  questionLinkId: string,
+  options: BuilderChoiceOption[]
+): BuilderChoiceOption[] {
+  const regenerated: BuilderChoiceOption[] = [];
+  for (const option of options) {
+    regenerated.push({
+      ...option,
+      code: generateUniqueOptionCode(questionLinkId, option.display, regenerated)
+    });
+  }
+  return regenerated;
+}
+
 function createInitialQuestionnaireBuilderState(): BuilderState {
   return {
-    title: "Untitled questionnaire",
-    slug: "untitled-questionnaire",
+    title: "",
+    slug: "",
     version: "1.0.0",
     status: "draft",
     questions: [
       {
         id: createInternalId("question"),
-        linkId: "new-question",
-        text: "New question",
+        linkId: "",
+        text: "",
         type: "string",
         required: false,
         options: []

@@ -5,6 +5,9 @@ export interface AuthMeResponse {
     user?: {
         name?: string;
         email?: string;
+        nickname?: string;
+        picture?: string;
+        sub?: string;
         [key: string]: unknown;
     };
 }

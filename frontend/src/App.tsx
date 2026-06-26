@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { AppView } from "./appView";
-import { getAuthMe, login, logout, type AuthMeResponse } from "./api/auth";
+import { getAuthMe, login, type AuthMeResponse } from "./api/auth";
 import AppShell from "./components/AppShell";
 import HomePage from "./components/HomePage";
 import IntakesPage from "./components/IntakesPage";
@@ -77,7 +77,7 @@ export default function App() {
 
   return (
     <div className="app-frame">
-      <AppShell activeView={appView} onNavigate={setAppView} />
+      <AppShell activeView={appView} onNavigate={setAppView} user={auth.user} />
 
       <main className="app-shell">
         {appView === "home" && (

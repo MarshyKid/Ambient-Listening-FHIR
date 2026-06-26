@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Request, Response
-import json
 from os import environ as env
-from urllib.parse import urlparse
 
 from auth0_server_python.auth_server.server_client import ServerClient
 from auth0_server_python.auth_types import (
@@ -12,7 +10,7 @@ from auth0_server_python.auth_types import (
 )
 from auth0_server_python.store.abstract import AbstractDataStore
 from dotenv import load_dotenv
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse
 import truststore
 truststore.inject_into_ssl()
 
@@ -49,8 +47,10 @@ class CookieStore(AbstractDataStore):
             return None
 
     async def delete(self, *_, **kwargs):
-        options = kwargs.get("options")
-        response: Response = options.get("response")
+        if kwargs:
+            response: Response = kwargs.get("options").get("response")
+        else:
+            response: Response = _[1].get("response")
         response.delete_cookie(self.cookie_name)
 
 def auth0():
@@ -101,7 +101,7 @@ async def callback(request: Request):
 
     return response
 
-@router.post("/logout")
+@router.get("/logout")
 async def logout(request: Request):
     response = RedirectResponse(url="http://localhost:5173/")
 

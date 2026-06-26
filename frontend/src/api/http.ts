@@ -19,7 +19,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, {...init, credentials: "include"});
   const data = await parseJson(response);
   if (!response.ok) {
     throw new Error(errorMessage(data, response));

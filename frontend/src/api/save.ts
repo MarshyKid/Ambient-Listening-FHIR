@@ -46,6 +46,7 @@ export function buildBackendSaveRequest(params: {
 export async function saveToBackend(payload: BackendSaveRequest): Promise<BackendSaveResponse> {
   const response = await fetch(`${apiBaseUrl}/api/save`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json"
     },

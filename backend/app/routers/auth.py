@@ -62,7 +62,8 @@ def auth0():
         client_secret=env["AUTH0_CLIENT_SECRET"],
         redirect_uri=env["APP_BASE_URL"] + "/api/auth/callback",
         authorization_params={
-            "scope": "openid profile email",
+            "scope": "openid profile email user/*.*",
+            "audience": env["FHIR_BASE_URL"]
         },
         secret=session_secret,
         state_store=CookieStore(session_secret, "_a0_session", 259200, StateData),

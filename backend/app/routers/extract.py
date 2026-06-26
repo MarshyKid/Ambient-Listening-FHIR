@@ -6,6 +6,7 @@ from app.services.extraction_service import ExtractionService
 from app.services.fhir_client import FhirClient
 from app.services.questionnaire_service import QuestionnaireService
 from app.services.llm_service import LlmService
+from app.dependencies.auth import current_fhir_client
 
 router = APIRouter(prefix="/api/extract", tags=["extract"])
 
@@ -43,8 +44,7 @@ and return
 }
 """
 
-def extraction_service(settings: Settings = Depends(get_settings)) -> ExtractionService:
-    client = FhirClient(settings)
+def extraction_service(client: FhirClient = Depends(current_fhir_client), settings: Settings = Depends(get_settings)) -> ExtractionService:
     llmservice = LlmService(settings)
     return ExtractionService(QuestionnaireService(client, settings), llmservice)
 

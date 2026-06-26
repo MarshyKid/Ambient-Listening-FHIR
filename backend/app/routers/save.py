@@ -7,12 +7,12 @@ from app.services.patient_service import PatientService
 from app.services.practitioner_service import PractitionerService
 from app.services.questionnaire_service import QuestionnaireService
 from app.services.save_service import SaveService
+from app.dependencies.auth import current_fhir_client
 
 router = APIRouter(prefix="/api/save", tags=["save"])
 
 
-def save_service(settings: Settings = Depends(get_settings)) -> SaveService:
-    client = FhirClient(settings)
+def save_service(client: FhirClient = Depends(current_fhir_client), settings: Settings = Depends(get_settings)) -> SaveService:
     return SaveService(
         client,
         settings,

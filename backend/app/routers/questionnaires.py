@@ -9,12 +9,13 @@ from app.schemas.questionnaires import (
 )
 from app.services.fhir_client import FhirClient
 from app.services.questionnaire_service import QuestionnaireService
+from app.dependencies.auth import current_fhir_client
 
 router = APIRouter(prefix="/api/questionnaires", tags=["questionnaires"])
 
 
-def questionnaire_service(settings: Settings = Depends(get_settings)) -> QuestionnaireService:
-    return QuestionnaireService(FhirClient(settings), settings)
+def questionnaire_service(client: FhirClient = Depends(current_fhir_client), settings: Settings = Depends(get_settings)) -> QuestionnaireService:
+    return QuestionnaireService(client, settings)
 
 
 @router.get("", response_model=QuestionnaireQueryResult)

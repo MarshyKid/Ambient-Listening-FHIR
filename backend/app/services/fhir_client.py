@@ -57,8 +57,9 @@ class FhirInvalidRequest(FhirClientError):
 
 
 class FhirClient:
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(self, settings: Settings | None = None, access_token: str | None = None) -> None:
         self.settings = settings or get_settings()
+        self.access_token = access_token
 
     async def get_metadata(self) -> FhirResponse:
         return await self._request("GET", "metadata")
@@ -122,6 +123,8 @@ class FhirClient:
         allowed_statuses: Iterable[int] = range(200, 300),
     ) -> FhirResponse:
         merged_headers = {"Accept": FHIR_JSON}
+        if self.access_token:
+            merged_headers["Authorization"] = f"Bearer {self.access_token}"
         if json is not None:
             merged_headers["Content-Type"] = FHIR_JSON
         if headers:
@@ -182,7 +185,7 @@ class FhirClient:
 
     def _client(self) -> httpx.AsyncClient:
         auth = None
-        if self.settings.has_basic_auth:
+        if not self.access_token and self.settings.has_basic_auth:
             auth = httpx.BasicAuth(self.settings.fhir_username or "", self.settings.fhir_password or "")
         return httpx.AsyncClient(
             verify=self.settings.fhir_verify_ssl,

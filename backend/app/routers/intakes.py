@@ -4,12 +4,13 @@ from app.config import Settings, get_settings
 from app.schemas.intake import IntakeQueryResult
 from app.services.intake_service import IntakeService
 from app.services.fhir_client import FhirClient
+from app.dependencies.auth import current_fhir_client
 
 router = APIRouter(prefix="/api/intakes", tags=["intakes"])
 
 
-def intake_service(settings: Settings = Depends(get_settings)) -> IntakeService:
-    return IntakeService(FhirClient(settings), settings)
+def intake_service(client: FhirClient = Depends(current_fhir_client), settings: Settings = Depends(get_settings)) -> IntakeService:
+    return IntakeService(client, settings)
 
 
 @router.get("", response_model=IntakeQueryResult)

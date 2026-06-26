@@ -4,6 +4,7 @@ import { buildQuestionnaireResponsePreview } from "../mock/mockApi";
 import { flattenAnswerableItems, hasAnswerValue, manualEntryEvidence } from "../utils/questionnaireItems";
 import { choiceOptionDisplay, choiceOptionInputValue, choiceOptionKey, selectedChoiceInputValue } from "../utils/choiceOptions";
 import ConfidenceBadge from "./ConfidenceBadge";
+import { defaultQuestionnaireResponseUrl } from "../api/questionnaires";
 
 interface ReviewExtractionProps {
   patient: PatientSummary;
@@ -391,7 +392,7 @@ export default function ReviewExtraction({
   onSuggestionsChange,
   onContinue
 }: ReviewExtractionProps) {
-  const [requestUrl, setRequestUrl] = useState("http://localhost:8080/csp/healthshare/demo/fhir/r4/QuestionnaireResponse");
+  const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireResponseUrl);
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const answersByLinkId = new Map(answers.map((answer) => [answer.linkId, answer]));
   const answeredCount = answers.filter((answer) => hasAnswerValue(answer.value)).length;

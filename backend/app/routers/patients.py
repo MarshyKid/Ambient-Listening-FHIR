@@ -4,12 +4,13 @@ from app.config import Settings, get_settings
 from app.schemas.patients import CreatePatientRequest, CreatePatientResponse, PatientByMrnResponse, PatientQueryResult
 from app.services.fhir_client import FhirClient
 from app.services.patient_service import PatientService
+from app.dependencies.auth import current_fhir_client
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
 
-def patient_service(settings: Settings = Depends(get_settings)) -> PatientService:
-    return PatientService(FhirClient(settings), settings)
+def patient_service(client: FhirClient = Depends(current_fhir_client) ,settings: Settings = Depends(get_settings)) -> PatientService:
+    return PatientService(client, settings)
 
 
 @router.get("", response_model=PatientQueryResult)

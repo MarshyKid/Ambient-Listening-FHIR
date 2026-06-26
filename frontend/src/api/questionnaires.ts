@@ -15,6 +15,7 @@ import { normalizeChoiceOption } from "../utils/choiceOptions";
 type QuestionnaireStatus = QuestionnaireSummary["status"];
 
 export const defaultQuestionnaireSearchUrl = `${fhirBaseUrl}/Questionnaire?status=active&_count=100`;
+export const defaultQuestionnaireResponseUrl = `${fhirBaseUrl}/QuestionnaireResponse`;
 
 interface BackendQuestionnaireSummary {
   id: string;

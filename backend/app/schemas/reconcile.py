@@ -35,6 +35,9 @@ class ReconcileRequest(ApiModel):
 class ReconciliationFinding(ApiModel):
     classification: ReconciliationClassification
     domain: ReconciliationDomain
+    targetKind: Literal["answer", "clinicalSuggestion", "general"] = "general"
+    targetLinkId: str | None = None
+    targetClinicalSuggestionIndex: int | None = None
     severity: Literal["info", "warning"]
     summary: str
     rationale: str

@@ -9,7 +9,7 @@ interface ConversationInputProps {
   questionnaire: Questionnaire;
   transcript: string;
   onTranscriptChange: (transcript: string) => void;
-  onExtracted: (result: ExtractionResult) => void;
+  onExtracted: (result: ExtractionResult) => void | Promise<void>;
 }
 
 export default function ConversationInput({
@@ -56,7 +56,7 @@ export default function ConversationInput({
     setExtractError(null);
     try {
       const result = await extractFromTranscript({ questionnaire, transcript });
-      onExtracted(result);
+      await onExtracted(result);
     } catch (error) {
       setExtractError(error instanceof Error ? error.message : "Extraction failed.");
     } finally {

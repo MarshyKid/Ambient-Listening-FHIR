@@ -17,6 +17,9 @@ class DraftAllergyFact:
     reaction: str | None
     negative: bool
     evidence: str | None
+    target_kind: str
+    target_link_id: str | None = None
+    target_clinical_suggestion_index: int | None = None
 
 
 @dataclass(frozen=True)
@@ -24,6 +27,9 @@ class DraftMedicationFact:
     medication: str | None
     negative: bool
     evidence: str | None
+    target_kind: str
+    target_link_id: str | None = None
+    target_clinical_suggestion_index: int | None = None
 
 
 class ReconciliationAgentService:
@@ -56,6 +62,9 @@ class ReconciliationAgentService:
                         ReconciliationFinding(
                             classification="contradiction",
                             domain="AllergyIntolerance",
+                            targetKind=draft.target_kind,
+                            targetLinkId=draft.target_link_id,
+                            targetClinicalSuggestionIndex=draft.target_clinical_suggestion_index,
                             severity="warning",
                             summary="Draft says no known allergies, but active allergy records exist.",
                             rationale="This may conflict with active AllergyIntolerance records already on file.",
@@ -75,6 +84,9 @@ class ReconciliationAgentService:
                     ReconciliationFinding(
                         classification="duplicate",
                         domain="AllergyIntolerance",
+                        targetKind=draft.target_kind,
+                        targetLinkId=draft.target_link_id,
+                        targetClinicalSuggestionIndex=draft.target_clinical_suggestion_index,
                         severity="info",
                         summary=f"{draft.substance} allergy already appears to be recorded.",
                         rationale="A matching active AllergyIntolerance was found in the checked patient record.",
@@ -88,6 +100,9 @@ class ReconciliationAgentService:
                     ReconciliationFinding(
                         classification="novel",
                         domain="AllergyIntolerance",
+                        targetKind=draft.target_kind,
+                        targetLinkId=draft.target_link_id,
+                        targetClinicalSuggestionIndex=draft.target_clinical_suggestion_index,
                         severity="info",
                         summary=f"{draft.substance} allergy was not found in checked allergy records.",
                         rationale="No matching AllergyIntolerance was found in the checked records. This does not prove absence.",
@@ -114,6 +129,9 @@ class ReconciliationAgentService:
                         ReconciliationFinding(
                             classification="contradiction",
                             domain="MedicationStatement",
+                            targetKind=draft.target_kind,
+                            targetLinkId=draft.target_link_id,
+                            targetClinicalSuggestionIndex=draft.target_clinical_suggestion_index,
                             severity="warning",
                             summary="Draft says the patient is not taking blood thinners, but current medication records may indicate one.",
                             rationale="This may conflict with current MedicationStatement records already on file.",
@@ -133,6 +151,9 @@ class ReconciliationAgentService:
                     ReconciliationFinding(
                         classification="duplicate",
                         domain="MedicationStatement",
+                        targetKind=draft.target_kind,
+                        targetLinkId=draft.target_link_id,
+                        targetClinicalSuggestionIndex=draft.target_clinical_suggestion_index,
                         severity="info",
                         summary=f"{draft.medication} already appears in current medication records.",
                         rationale="A matching MedicationStatement was found in the checked patient record.",
@@ -146,6 +167,9 @@ class ReconciliationAgentService:
                     ReconciliationFinding(
                         classification="novel",
                         domain="MedicationStatement",
+                        targetKind=draft.target_kind,
+                        targetLinkId=draft.target_link_id,
+                        targetClinicalSuggestionIndex=draft.target_clinical_suggestion_index,
                         severity="info",
                         summary=f"{draft.medication} was not found in checked medication records.",
                         rationale="No matching MedicationStatement was found in the checked records. This does not prove absence.",
@@ -163,7 +187,7 @@ def _draft_allergy_facts(
 ) -> list[DraftAllergyFact]:
     facts: list[DraftAllergyFact] = []
 
-    for suggestion in suggestions:
+    for index, suggestion in enumerate(suggestions):
         if suggestion.resourceType == "AllergyIntolerance":
             substance = (suggestion.fields.get("substance") or "").strip()
             if substance:
@@ -173,16 +197,36 @@ def _draft_allergy_facts(
                         reaction=(suggestion.fields.get("reaction") or "").strip() or None,
                         negative=False,
                         evidence=suggestion.evidence,
+                        target_kind="clinicalSuggestion",
+                        target_clinical_suggestion_index=_frontend_index(suggestion, index),
                     )
                 )
 
     for answer in answers:
         if _is_negative_allergy_answer(answer):
-            facts.append(DraftAllergyFact(substance=None, reaction=None, negative=True, evidence=answer.evidence))
+            facts.append(
+                DraftAllergyFact(
+                    substance=None,
+                    reaction=None,
+                    negative=True,
+                    evidence=answer.evidence,
+                    target_kind="answer",
+                    target_link_id=answer.linkId,
+                )
+            )
         elif _looks_allergy_related(answer):
             text = _answer_text(answer)
             if text and not _is_negative_phrase(text):
-                facts.append(DraftAllergyFact(substance=text, reaction=None, negative=False, evidence=answer.evidence))
+                facts.append(
+                    DraftAllergyFact(
+                        substance=text,
+                        reaction=None,
+                        negative=False,
+                        evidence=answer.evidence,
+                        target_kind="answer",
+                        target_link_id=answer.linkId,
+                    )
+                )
 
     return _dedupe_allergy_facts(facts)
 
@@ -193,23 +237,55 @@ def _draft_medication_facts(
 ) -> list[DraftMedicationFact]:
     facts: list[DraftMedicationFact] = []
 
-    for suggestion in suggestions:
+    for index, suggestion in enumerate(suggestions):
         if suggestion.resourceType == "MedicationStatement":
             medication = (suggestion.fields.get("medication") or suggestion.fields.get("name") or "").strip()
             if medication:
-                facts.append(DraftMedicationFact(medication=medication, negative=False, evidence=suggestion.evidence))
+                facts.append(
+                    DraftMedicationFact(
+                        medication=medication,
+                        negative=False,
+                        evidence=suggestion.evidence,
+                        target_kind="clinicalSuggestion",
+                        target_clinical_suggestion_index=_frontend_index(suggestion, index),
+                    )
+                )
 
     for answer in answers:
         text = _answer_text(answer)
         link_text = answer.linkId.lower()
         combined = f"{link_text} {text.lower() if text else ''}"
         if "blood thinner" in combined and answer.value is False:
-            facts.append(DraftMedicationFact(medication=None, negative=True, evidence=answer.evidence))
+            facts.append(
+                DraftMedicationFact(
+                    medication=None,
+                    negative=True,
+                    evidence=answer.evidence,
+                    target_kind="answer",
+                    target_link_id=answer.linkId,
+                )
+            )
         elif "blood thinner" in combined and text and _is_negative_phrase(text):
-            facts.append(DraftMedicationFact(medication=None, negative=True, evidence=answer.evidence))
+            facts.append(
+                DraftMedicationFact(
+                    medication=None,
+                    negative=True,
+                    evidence=answer.evidence,
+                    target_kind="answer",
+                    target_link_id=answer.linkId,
+                )
+            )
         elif _looks_medication_related(answer) and text:
             for medication in _known_medications_in_text(text):
-                facts.append(DraftMedicationFact(medication=medication, negative=False, evidence=answer.evidence))
+                facts.append(
+                    DraftMedicationFact(
+                        medication=medication,
+                        negative=False,
+                        evidence=answer.evidence,
+                        target_kind="answer",
+                        target_link_id=answer.linkId,
+                    )
+                )
 
     return _dedupe_medication_facts(facts)
 
@@ -238,6 +314,13 @@ def _known_medications_in_text(text: str) -> list[str]:
         if medication in lower:
             medications.append(medication)
     return medications
+
+
+def _frontend_index(suggestion: ReconcileClinicalSuggestion, fallback: int) -> int:
+    try:
+        return int(suggestion.fields.get("frontendIndex", fallback))
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _answer_text(answer: ReconcileAnswer) -> str | None:
@@ -274,7 +357,7 @@ def _dedupe_allergy_facts(facts: list[DraftAllergyFact]) -> list[DraftAllergyFac
     seen: set[tuple[bool, str]] = set()
     deduped: list[DraftAllergyFact] = []
     for fact in facts:
-        key = (fact.negative, normalize_text(fact.substance or ""))
+        key = (fact.negative, normalize_text(fact.substance or ""), fact.target_kind, fact.target_link_id or "", fact.target_clinical_suggestion_index or -1)
         if key in seen:
             continue
         seen.add(key)
@@ -286,7 +369,7 @@ def _dedupe_medication_facts(facts: list[DraftMedicationFact]) -> list[DraftMedi
     seen: set[tuple[bool, str]] = set()
     deduped: list[DraftMedicationFact] = []
     for fact in facts:
-        key = (fact.negative, normalize_medication(fact.medication or ""))
+        key = (fact.negative, normalize_medication(fact.medication or ""), fact.target_kind, fact.target_link_id or "", fact.target_clinical_suggestion_index or -1)
         if key in seen:
             continue
         seen.add(key)

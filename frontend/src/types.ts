@@ -266,6 +266,66 @@ export interface ExtractionResult {
   clinicalSuggestions: ClinicalSuggestion[];
 }
 
+export type ReconciliationClassification = "duplicate" | "contradiction" | "novel";
+export type ReconciliationDomain = "AllergyIntolerance" | "MedicationStatement";
+export type ReconciliationTargetKind = "answer" | "clinicalSuggestion" | "general";
+
+export interface ReconcileAnswerRequest {
+  linkId: string;
+  valueType: ReviewedAnswerValueType;
+  value: unknown;
+  confidence?: number | null;
+  evidence?: string | null;
+}
+
+export interface ReconcileClinicalSuggestionRequest {
+  resourceType: "AllergyIntolerance" | "MedicationStatement";
+  accepted: boolean;
+  confidence?: number | null;
+  evidence?: string | null;
+  fields: Record<string, string>;
+}
+
+export interface ReconcileRequest {
+  patientId: string;
+  questionnaireId?: string | null;
+  answers: ReconcileAnswerRequest[];
+  clinicalSuggestions: ReconcileClinicalSuggestionRequest[];
+}
+
+export interface ReconciliationFinding {
+  classification: ReconciliationClassification;
+  domain: ReconciliationDomain;
+  targetKind: ReconciliationTargetKind;
+  targetLinkId?: string | null;
+  targetClinicalSuggestionIndex?: number | null;
+  severity: "info" | "warning";
+  summary: string;
+  rationale: string;
+  draftEvidence?: string | null;
+  existingResourceRefs: string[];
+  recommendation?: string | null;
+}
+
+export interface ReconciliationActivity {
+  step: string;
+  status: "completed" | "skipped" | "failed";
+  message: string;
+}
+
+export interface CheckedRecordSummary {
+  domainsChecked: ReconciliationDomain[];
+  allergyIntoleranceCount: number;
+  medicationStatementCount: number;
+}
+
+export interface ReconcileResponse {
+  patientId: string;
+  findings: ReconciliationFinding[];
+  activityTrail: ReconciliationActivity[];
+  checkedRecordSummary: CheckedRecordSummary;
+}
+
 export interface SavePayload {
   patientId: string;
   questionnaireId: string;

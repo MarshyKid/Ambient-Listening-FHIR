@@ -2955,6 +2955,114 @@ textarea {
   font-weight: 600;
 }
 
+.consistency-banner {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+  padding: 14px 16px;
+}
+
+.consistency-banner.checking {
+  background: var(--primary-tint);
+}
+
+.consistency-banner.warning {
+  border-color: #e6bbb4;
+  background: var(--attention-tint);
+}
+
+.consistency-banner h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.consistency-banner p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+}
+
+.consistency-banner-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.consistency-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.consistency-count.warn {
+  color: var(--attention);
+}
+
+.consistency-count.new {
+  color: var(--confirmed);
+}
+
+.consistency-separator {
+  color: var(--ink-3);
+}
+
+.consistency-trail {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+}
+
+.consistency-trail summary {
+  padding: 10px 12px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.consistency-trail-list {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 12px;
+}
+
+.consistency-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.consistency-step span:first-child {
+  color: var(--confirmed);
+}
+
+.consistency-step.failed span:first-child {
+  color: var(--attention);
+}
+
+.consistency-step.skipped span:first-child {
+  color: var(--ink-3);
+}
+
+.consistency-empty {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .filter-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -3075,6 +3183,124 @@ textarea {
 .extraction-metadata {
   display: grid;
   gap: 8px;
+}
+
+.reconciliation-finding-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reconciliation-finding {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--r);
+  background: var(--panel);
+  padding: 12px;
+}
+
+.reconciliation-finding.duplicate {
+  border-left-color: #b07a1e;
+}
+
+.reconciliation-finding.contradiction {
+  border-left-color: var(--attention);
+}
+
+.reconciliation-finding.novel {
+  border-left-color: var(--confirmed);
+}
+
+.reconciliation-finding-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reconciliation-finding-head strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.reconciliation-finding p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.reconciliation-tag {
+  flex: 0 0 auto;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.reconciliation-tag.duplicate {
+  background: #f6efdd;
+  color: #b07a1e;
+}
+
+.reconciliation-tag.contradiction {
+  background: var(--attention-tint);
+  color: var(--attention);
+}
+
+.reconciliation-tag.novel {
+  background: var(--confirmed-tint);
+  color: var(--confirmed);
+}
+
+.reconciliation-evidence,
+.reconciliation-citations {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  font-size: 12.5px;
+}
+
+.reconciliation-evidence {
+  background: var(--primary-tint);
+  color: var(--ink-2);
+}
+
+.reconciliation-evidence span,
+.reconciliation-citations span {
+  flex: 0 0 auto;
+  color: var(--primary-d);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.reconciliation-evidence q {
+  color: var(--ink);
+  font-style: italic;
+}
+
+.reconciliation-citations {
+  flex-wrap: wrap;
+  background: var(--panel-2);
+  color: var(--ink-2);
+}
+
+.reconciliation-citations code {
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.reconciliation-recommendation {
+  color: var(--ink-2);
+  font-style: italic;
 }
 
 .secondary-demo-panel {

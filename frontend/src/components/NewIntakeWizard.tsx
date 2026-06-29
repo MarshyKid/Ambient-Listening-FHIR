@@ -6,7 +6,8 @@ import QuestionnaireSelection from "./QuestionnaireSelection";
 import ReviewExtraction from "./ReviewExtraction";
 import SaveConfirmation from "./SaveConfirmation";
 import Stepper from "./Stepper";
-import type { ClinicalSuggestion, ExtractedAnswer, ExtractionResult, PatientSummary, Questionnaire, SaveResult } from "../types";
+import type { ClinicalSuggestion, ExtractedAnswer, ExtractionResult, PatientSummary, Questionnaire, ReconcileResponse, SaveResult } from "../types";
+import { reconcileDraft } from "../api/reconcile";
 
 const steps = ["Patient", "Questionnaire", "Conversation", "Review", "Save"];
 
@@ -17,6 +18,9 @@ export default function NewIntakeWizard() {
   const [transcript, setTranscript] = useState("");
   const [reviewedAnswers, setReviewedAnswers] = useState<ExtractedAnswer[]>([]);
   const [clinicalSuggestions, setClinicalSuggestions] = useState<ClinicalSuggestion[]>([]);
+  const [reconciliationResult, setReconciliationResult] = useState<ReconcileResponse | null>(null);
+  const [reconciliationLoading, setReconciliationLoading] = useState(false);
+  const [reconciliationError, setReconciliationError] = useState<string | null>(null);
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
 
   const hasExtraction = reviewedAnswers.length > 0;
@@ -35,6 +39,9 @@ export default function NewIntakeWizard() {
     setTranscript("");
     setReviewedAnswers([]);
     setClinicalSuggestions([]);
+    setReconciliationResult(null);
+    setReconciliationLoading(false);
+    setReconciliationError(null);
     setSaveResult(null);
   }
 
@@ -42,12 +49,18 @@ export default function NewIntakeWizard() {
     setTranscript("");
     setReviewedAnswers([]);
     setClinicalSuggestions([]);
+    setReconciliationResult(null);
+    setReconciliationLoading(false);
+    setReconciliationError(null);
     setSaveResult(null);
   }
 
   function clearFromTranscript() {
     setReviewedAnswers([]);
     setClinicalSuggestions([]);
+    setReconciliationResult(null);
+    setReconciliationLoading(false);
+    setReconciliationError(null);
     setSaveResult(null);
   }
 
@@ -72,11 +85,34 @@ export default function NewIntakeWizard() {
     setTranscript(nextTranscript);
   }
 
-  function handleExtracted(result: ExtractionResult) {
-    setReviewedAnswers([...result.answers, ...result.unanswered]);
-    setClinicalSuggestions(result.clinicalSuggestions);
+  async function handleExtracted(result: ExtractionResult) {
+    const nextAnswers = [...result.answers, ...result.unanswered];
+    const nextSuggestions = result.clinicalSuggestions;
+    setReviewedAnswers(nextAnswers);
+    setClinicalSuggestions(nextSuggestions);
+    setReconciliationResult(null);
+    setReconciliationError(null);
     setSaveResult(null);
     setCurrentStep(3);
+
+    if (!selectedPatient || !selectedQuestionnaire) {
+      return;
+    }
+
+    setReconciliationLoading(true);
+    try {
+      const reconciliation = await reconcileDraft({
+        patient: selectedPatient,
+        questionnaire: selectedQuestionnaire,
+        answers: nextAnswers,
+        clinicalSuggestions: nextSuggestions
+      });
+      setReconciliationResult(reconciliation);
+    } catch (error) {
+      setReconciliationError(error instanceof Error ? error.message : "Could not check existing record.");
+    } finally {
+      setReconciliationLoading(false);
+    }
   }
 
   function handleStepClick(step: number) {
@@ -122,6 +158,9 @@ export default function NewIntakeWizard() {
           questionnaire={selectedQuestionnaire}
           answers={reviewedAnswers}
           clinicalSuggestions={clinicalSuggestions}
+          reconciliationResult={reconciliationResult}
+          reconciliationLoading={reconciliationLoading}
+          reconciliationError={reconciliationError}
           onAnswersChange={(answers) => {
             setReviewedAnswers(answers);
             setSaveResult(null);

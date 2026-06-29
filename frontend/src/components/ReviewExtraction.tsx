@@ -1,5 +1,15 @@
 import { useState, type ChangeEvent } from "react";
-import type { ClinicalSuggestion, ExtractedAnswer, ExtractedValue, PatientSummary, Questionnaire, QuestionnaireItem } from "../types";
+import type {
+  ClinicalSuggestion,
+  ExtractedAnswer,
+  ExtractedValue,
+  PatientSummary,
+  Questionnaire,
+  QuestionnaireItem,
+  ReconcileResponse,
+  ReconciliationActivity,
+  ReconciliationFinding
+} from "../types";
 import { buildQuestionnaireResponsePreview } from "../mock/mockApi";
 import { flattenAnswerableItems, hasAnswerValue, manualEntryEvidence } from "../utils/questionnaireItems";
 import { choiceOptionDisplay, choiceOptionInputValue, choiceOptionKey, selectedChoiceInputValue } from "../utils/choiceOptions";
@@ -11,6 +21,9 @@ interface ReviewExtractionProps {
   questionnaire: Questionnaire;
   answers: ExtractedAnswer[];
   clinicalSuggestions: ClinicalSuggestion[];
+  reconciliationResult: ReconcileResponse | null;
+  reconciliationLoading: boolean;
+  reconciliationError: string | null;
   onAnswersChange: (answers: ExtractedAnswer[]) => void;
   onSuggestionsChange: (suggestions: ClinicalSuggestion[]) => void;
   onContinue: () => void;
@@ -167,13 +180,157 @@ function FhirPreviewPanel({
   );
 }
 
+function ConsistencyCheckBanner({
+  result,
+  loading,
+  error
+}: {
+  result: ReconcileResponse | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const toCheckCount = result?.findings.filter((finding) => finding.classification === "duplicate" || finding.classification === "contradiction").length ?? 0;
+  const novelCount = result?.findings.filter((finding) => finding.classification === "novel").length ?? 0;
+
+  if (loading) {
+    return (
+      <section className="consistency-banner checking">
+        <div>
+          <p className="eyebrow">Consistency check</p>
+          <h2>Checking patient record...</h2>
+          <p>Comparing the extracted draft with this patient&apos;s existing FHIR records.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="consistency-banner warning">
+        <div>
+          <p className="eyebrow">Consistency check</p>
+          <h2>Could not check existing record</h2>
+          <p>Review extracted items manually. {error}</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!result) {
+    return null;
+  }
+
+  return (
+    <section className="consistency-banner">
+      <div className="consistency-banner-head">
+        <div>
+          <p className="eyebrow">Consistency check</p>
+          <h2>Checked against this patient&apos;s record</h2>
+        </div>
+        <div className="consistency-summary">
+          <span className={`consistency-count ${toCheckCount > 0 ? "warn" : ""}`}>{toCheckCount} to check</span>
+          <span className="consistency-separator">·</span>
+          <span className="consistency-count new">{novelCount} new</span>
+        </div>
+      </div>
+
+      <details className="consistency-trail">
+        <summary>What the assistant checked</summary>
+        <div className="consistency-trail-list">
+          {result.activityTrail.map((activity) => (
+            <ConsistencyActivityStep key={`${activity.step}:${activity.message}`} activity={activity} />
+          ))}
+        </div>
+      </details>
+
+      {result.findings.length === 0 && <p className="consistency-empty">No duplicate, conflict, or new-record findings were flagged.</p>}
+    </section>
+  );
+}
+
+function ConsistencyActivityStep({ activity }: { activity: ReconciliationActivity }) {
+  return (
+    <div className={`consistency-step ${activity.status}`}>
+      <span aria-hidden="true">{activity.status === "completed" ? "✓" : activity.status === "failed" ? "!" : "·"}</span>
+      <span>{activity.message}</span>
+    </div>
+  );
+}
+
+function ReconciliationFindingInline({ findings }: { findings: ReconciliationFinding[] }) {
+  if (findings.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="reconciliation-finding-list">
+      {findings.map((finding, index) => (
+        <article key={`${finding.classification}:${finding.domain}:${index}`} className={`reconciliation-finding ${finding.classification}`}>
+          <div className="reconciliation-finding-head">
+            <strong>{finding.summary}</strong>
+            <span className={`reconciliation-tag ${finding.classification}`}>{findingLabel(finding.classification)}</span>
+          </div>
+          <p>{finding.rationale}</p>
+          {finding.draftEvidence && (
+            <div className="reconciliation-evidence">
+              <span>Draft evidence</span>
+              <q>{finding.draftEvidence}</q>
+            </div>
+          )}
+          {finding.existingResourceRefs.length > 0 && (
+            <div className="reconciliation-citations">
+              <span>On file</span>
+              {finding.existingResourceRefs.map((reference) => (
+                <code key={reference}>{reference}</code>
+              ))}
+            </div>
+          )}
+          {finding.recommendation && <p className="reconciliation-recommendation">{finding.recommendation}</p>}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function findingLabel(classification: ReconciliationFinding["classification"]) {
+  if (classification === "duplicate") return "Already on file";
+  if (classification === "contradiction") return "Conflicts with record";
+  return "New";
+}
+
+function findingsByAnswerLinkId(findings: ReconciliationFinding[]): Map<string, ReconciliationFinding[]> {
+  const map = new Map<string, ReconciliationFinding[]>();
+  findings.forEach((finding) => {
+    if (finding.targetKind !== "answer" || !finding.targetLinkId) return;
+    const list = map.get(finding.targetLinkId) ?? [];
+    list.push(finding);
+    map.set(finding.targetLinkId, list);
+  });
+  return map;
+}
+
+function findingsByClinicalSuggestionIndex(findings: ReconciliationFinding[]): Map<number, ReconciliationFinding[]> {
+  const map = new Map<number, ReconciliationFinding[]>();
+  findings.forEach((finding) => {
+    if (finding.targetKind !== "clinicalSuggestion" || finding.targetClinicalSuggestionIndex === null || finding.targetClinicalSuggestionIndex === undefined) {
+      return;
+    }
+    const list = map.get(finding.targetClinicalSuggestionIndex) ?? [];
+    list.push(finding);
+    map.set(finding.targetClinicalSuggestionIndex, list);
+  });
+  return map;
+}
+
 function ReviewQuestionRow({
   item,
   answer,
+  findings,
   onValueChange
 }: {
   item: QuestionnaireItem;
   answer: ExtractedAnswer;
+  findings: ReconciliationFinding[];
   onValueChange: (item: QuestionnaireItem, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
 }) {
   const isAnswered = hasAnswerValue(answer.value);
@@ -244,6 +401,8 @@ function ReviewQuestionRow({
           )}
         </div>
       )}
+
+      <ReconciliationFindingInline findings={findings} />
     </article>
   );
 }
@@ -251,11 +410,13 @@ function ReviewQuestionRow({
 function ReviewSectionAccordion({
   section,
   answersByLinkId,
+  findingsByLinkId,
   filter,
   onValueChange
 }: {
   section: ReviewSection;
   answersByLinkId: Map<string, ExtractedAnswer>;
+  findingsByLinkId: Map<string, ReconciliationFinding[]>;
   filter: ReviewFilter;
   onValueChange: (item: QuestionnaireItem, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
 }) {
@@ -281,7 +442,13 @@ function ReviewSectionAccordion({
       </summary>
       <div className="review-question-list">
         {visibleItems.map(({ item, answer }) => (
-          <ReviewQuestionRow key={item.linkId} item={item} answer={answer} onValueChange={onValueChange} />
+          <ReviewQuestionRow
+            key={item.linkId}
+            item={item}
+            answer={answer}
+            findings={findingsByLinkId.get(item.linkId) ?? []}
+            onValueChange={onValueChange}
+          />
         ))}
       </div>
     </details>
@@ -290,6 +457,7 @@ function ReviewSectionAccordion({
 
 function ClinicalSuggestionsPanel({
   suggestions,
+  findingsBySuggestionIndex,
   onSuggestionChange,
   onSuggestionFieldChange,
   onAddManualAllergy,
@@ -297,6 +465,7 @@ function ClinicalSuggestionsPanel({
   hasInvalidAllergyResource
 }: {
   suggestions: ClinicalSuggestion[];
+  findingsBySuggestionIndex: Map<number, ReconciliationFinding[]>;
   onSuggestionChange: (id: string, patch: Partial<ClinicalSuggestion>) => void;
   onSuggestionFieldChange: (id: string, field: string, value: string) => void;
   onAddManualAllergy: () => void;
@@ -319,7 +488,7 @@ function ClinicalSuggestionsPanel({
         <p className="muted compact-empty">No clinical resources added.</p>
       ) : (
         <div className="suggestion-list">
-          {suggestions.map((suggestion) => {
+          {suggestions.map((suggestion, index) => {
             const source = clinicalResourceSource(suggestion);
             const isManual = source === "manual";
             const isInvalid = isInvalidAllergyResource(suggestion);
@@ -360,6 +529,8 @@ function ClinicalSuggestionsPanel({
                   </div>
                 )}
 
+                <ReconciliationFindingInline findings={findingsBySuggestionIndex.get(index) ?? []} />
+
                 {isManual ? (
                   <button className="secondary-button" type="button" onClick={() => onRemoveManualSuggestion(suggestion.id)}>
                     Remove
@@ -388,6 +559,9 @@ export default function ReviewExtraction({
   questionnaire,
   answers,
   clinicalSuggestions,
+  reconciliationResult,
+  reconciliationLoading,
+  reconciliationError,
   onAnswersChange,
   onSuggestionsChange,
   onContinue
@@ -395,6 +569,8 @@ export default function ReviewExtraction({
   const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireResponseUrl);
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const answersByLinkId = new Map(answers.map((answer) => [answer.linkId, answer]));
+  const findingsByLinkId = findingsByAnswerLinkId(reconciliationResult?.findings ?? []);
+  const findingsBySuggestionIndex = findingsByClinicalSuggestionIndex(reconciliationResult?.findings ?? []);
   const answeredCount = answers.filter((answer) => hasAnswerValue(answer.value)).length;
   const unansweredCount = answers.length - answeredCount;
   const hasInvalidAllergyResource = clinicalSuggestions.some(isInvalidAllergyResource);
@@ -465,12 +641,15 @@ export default function ReviewExtraction({
 
       <ReviewSummaryBar answeredCount={answeredCount} unansweredCount={unansweredCount} filter={filter} onFilterChange={setFilter} />
 
+      <ConsistencyCheckBanner result={reconciliationResult} loading={reconciliationLoading} error={reconciliationError} />
+
       <div className="review-layout">
         {sections.map((section) => (
           <ReviewSectionAccordion
             key={`${filter}-${section.id}`}
             section={section}
             answersByLinkId={answersByLinkId}
+            findingsByLinkId={findingsByLinkId}
             filter={filter}
             onValueChange={handleValueChange}
           />
@@ -479,6 +658,7 @@ export default function ReviewExtraction({
 
       <ClinicalSuggestionsPanel
         suggestions={clinicalSuggestions}
+        findingsBySuggestionIndex={findingsBySuggestionIndex}
         onSuggestionChange={updateSuggestion}
         onSuggestionFieldChange={updateSuggestionField}
         onAddManualAllergy={addManualAllergy}

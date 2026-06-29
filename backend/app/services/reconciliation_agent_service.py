@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.schemas.reconcile import ReconcileAnswer, ReconcileClinicalSuggestion, ReconciliationFinding
+from app.schemas.reconcile import ReconcileAnswer, ReconcileClinicalSuggestion, ReconciliationDomain, ReconciliationFinding
 from app.services.record_fact_mapper import (
     AllergyFact,
     MedicationFact,
@@ -307,6 +307,25 @@ def _looks_medication_related(answer: ReconcileAnswer) -> bool:
     return "medication" in haystack or "blood thinner" in haystack or bool(_known_medications_in_text(haystack))
 
 
+def relevant_domains(request: object) -> set[ReconciliationDomain]:
+    domains: set[ReconciliationDomain] = set()
+    suggestions = getattr(request, "clinicalSuggestions", [])
+    answers = getattr(request, "answers", [])
+
+    for suggestion in suggestions:
+        if suggestion.resourceType in {"AllergyIntolerance", "MedicationStatement"}:
+            domains.add(suggestion.resourceType)
+
+    for answer in answers:
+        haystack = f"{answer.linkId} {answer.evidence or ''} {_answer_text(answer) or ''}".lower()
+        if "allerg" in haystack or "allergen" in haystack:
+            domains.add("AllergyIntolerance")
+        if any(token in haystack for token in ["medication", "blood thinner", "warfarin", "coumadin", "eliquis", "apixaban", "aspirin"]):
+            domains.add("MedicationStatement")
+
+    return domains
+
+
 def _known_medications_in_text(text: str) -> list[str]:
     lower = text.lower()
     medications = []
@@ -340,7 +359,23 @@ def _answer_text(answer: ReconcileAnswer) -> str | None:
 
 def _is_negative_phrase(text: str) -> bool:
     lower = text.lower()
-    return any(phrase in lower for phrase in [" no ", "none", "not taking", "no known", "denies"])
+    return any(
+        phrase in lower
+        for phrase in [
+            " no ",
+            "no,",
+            "no.",
+            "none",
+            "not on",
+            "not currently on",
+            "not taking",
+            "not taking any",
+            "do not take",
+            "don't take",
+            "no known",
+            "denies",
+        ]
+    )
 
 
 def _text_matches(left: str, right: str) -> bool:

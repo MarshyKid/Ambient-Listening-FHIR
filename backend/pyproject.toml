@@ -15,6 +15,7 @@ dependencies = [
   "markupsafe>=3.0.3",
   "python-certifi-win32>=1.6.1",
   "truststore>=0.10.4",
+  "langgraph>=0.2.0",
 ]
 
 [project.optional-dependencies]

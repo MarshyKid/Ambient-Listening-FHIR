@@ -132,7 +132,7 @@ Rules:
 - Do not produce findings.
 - Do not produce FHIR queries, FHIR references, URLs, or search parameters.
 - Only choose from these domains: AllergyIntolerance, MedicationStatement.
-- Choose AllergyIntolerance if the draft mentions allergies, adverse reactions, allergy uncertainty, or no known allergies.
+- Choose AllergyIntolerance if the draft mentions allergies, adverse reactions, allergy uncertainty, or no known allergies (even if only implied)
 - Choose MedicationStatement if the draft mentions medications, current medication use, stopped medications, blood thinners, warfarin, Coumadin, Eliquis, apixaban, aspirin, or medication-status uncertainty.
 """.strip()
 

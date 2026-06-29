@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     llm_timeout_seconds: float = Field(default=45, alias="LLM_TIMEOUT_SECONDS")
     llm_reconciliation_planner_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_PLANNER_ENABLED")
+    llm_reconciliation_semantic_compare_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_SEMANTIC_COMPARE_ENABLED")
 
     @field_validator("fhir_base_url", "questionnaire_canonical_base")
     @classmethod

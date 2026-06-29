@@ -7,6 +7,7 @@ from .common import ApiModel
 
 ReconciliationClassification = Literal["duplicate", "contradiction", "novel"]
 ReconciliationDomain = Literal["AllergyIntolerance", "MedicationStatement"]
+ReconciliationFindingSource = Literal["deterministic", "llm_semantic"]
 
 
 class ReconcileAnswer(ApiModel):
@@ -36,6 +37,7 @@ class ReconcileRequest(ApiModel):
 class ReconciliationFinding(ApiModel):
     classification: ReconciliationClassification
     domain: ReconciliationDomain
+    source: ReconciliationFindingSource | None = None
     targetKind: Literal["answer", "clinicalSuggestion", "general"] = "general"
     targetLinkId: str | None = None
     targetClinicalSuggestionIndex: int | None = None

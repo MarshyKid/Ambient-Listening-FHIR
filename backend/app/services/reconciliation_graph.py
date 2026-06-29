@@ -17,6 +17,7 @@ from app.services.record_fact_mapper import AllergyFact, MedicationFact, allergy
 from app.services.record_snapshot_service import RecordSnapshotService
 from app.services.reconciliation_agent_service import ReconciliationAgentService, relevant_domains
 from app.services.reconciliation_planner_service import ReconciliationPlannerService
+from app.services.reconciliation_semantic_comparator_service import ReconciliationSemanticComparatorService
 
 
 ALLOWED_DOMAINS: set[ReconciliationDomain] = {"AllergyIntolerance", "MedicationStatement"}
@@ -44,10 +45,12 @@ class ReconciliationGraph:
         snapshot_service: RecordSnapshotService,
         agent: ReconciliationAgentService,
         planner: ReconciliationPlannerService | None = None,
+        semantic_comparator: ReconciliationSemanticComparatorService | None = None,
     ) -> None:
         self.snapshot_service = snapshot_service
         self.agent = agent
         self.planner = planner
+        self.semantic_comparator = semantic_comparator
         self.graph = self._build_graph()
 
     async def ainvoke(self, request: ReconcileRequest) -> ReconcileResponse:
@@ -66,6 +69,7 @@ class ReconciliationGraph:
         workflow.add_node("fetch_record_context", self.fetch_record_context)
         workflow.add_node("map_record_facts", self.map_record_facts)
         workflow.add_node("compare_draft_to_record", self.compare_draft_to_record)
+        workflow.add_node("llm_semantic_compare", self.llm_semantic_compare)
         workflow.add_node("validate_findings", self.validate_findings)
         workflow.add_node("build_response", self.build_response)
 
@@ -76,7 +80,8 @@ class ReconciliationGraph:
         workflow.add_edge("load_patient", "fetch_record_context")
         workflow.add_edge("fetch_record_context", "map_record_facts")
         workflow.add_edge("map_record_facts", "compare_draft_to_record")
-        workflow.add_edge("compare_draft_to_record", "validate_findings")
+        workflow.add_edge("compare_draft_to_record", "llm_semantic_compare")
+        workflow.add_edge("llm_semantic_compare", "validate_findings")
         workflow.add_edge("validate_findings", "build_response")
         workflow.add_edge("build_response", END)
         return workflow.compile()
@@ -246,7 +251,50 @@ class ReconciliationGraph:
         )
         failed = state.get("failedDomains", set())
         findings = [finding for finding in findings if not (finding.classification == "novel" and finding.domain in failed)]
+        findings = [finding.model_copy(update={"source": "deterministic"}) for finding in findings]
         return {**state, "findings": findings}
+
+    async def llm_semantic_compare(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
+        activity = list(state.get("activityTrail", []))
+        deterministic_findings = state.get("findings", [])
+
+        if not self.semantic_comparator:
+            activity.append(
+                ReconciliationActivity(
+                    step="llm-semantic-compare",
+                    status="skipped",
+                    message="LLM semantic comparator disabled; used deterministic findings only.",
+                )
+            )
+            return {**state, "activityTrail": activity}
+
+        try:
+            semantic_findings = await self.semantic_comparator.compare(
+                request=state["request"],
+                allergy_facts=state.get("allergyFacts", []),
+                medication_facts=state.get("medicationFacts", []),
+                existing_findings=deterministic_findings,
+            )
+        except Exception:
+            activity.append(
+                ReconciliationActivity(
+                    step="llm-semantic-compare",
+                    status="failed",
+                    message="LLM semantic comparator failed; used deterministic findings only.",
+                )
+            )
+            return {**state, "activityTrail": activity}
+
+        failed_domains = state.get("failedDomains", set())
+        semantic_findings = [finding for finding in semantic_findings if finding.domain not in failed_domains]
+        activity.append(
+            ReconciliationActivity(
+                step="llm-semantic-compare",
+                status="completed",
+                message=f"LLM semantic comparator added {len(semantic_findings)} advisory finding(s).",
+            )
+        )
+        return {**state, "findings": [*deterministic_findings, *semantic_findings], "activityTrail": activity}
 
     async def validate_findings(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
         fetched = state.get("fetchedResourceRefs", set())

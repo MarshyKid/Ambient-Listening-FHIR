@@ -269,6 +269,7 @@ export interface ExtractionResult {
 export type ReconciliationClassification = "duplicate" | "contradiction" | "novel";
 export type ReconciliationDomain = "AllergyIntolerance" | "MedicationStatement";
 export type ReconciliationTargetKind = "answer" | "clinicalSuggestion" | "general";
+export type ReconciliationFindingSource = "deterministic" | "llm_semantic";
 
 export interface ReconcileAnswerRequest {
   linkId: string;
@@ -297,6 +298,7 @@ export interface ReconcileRequest {
 export interface ReconciliationFinding {
   classification: ReconciliationClassification;
   domain: ReconciliationDomain;
+  source?: ReconciliationFindingSource | null;
   targetKind: ReconciliationTargetKind;
   targetLinkId?: string | null;
   targetClinicalSuggestionIndex?: number | null;

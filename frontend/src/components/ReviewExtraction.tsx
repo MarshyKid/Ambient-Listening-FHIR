@@ -268,7 +268,12 @@ function ReconciliationFindingInline({ findings }: { findings: ReconciliationFin
         <article key={`${finding.classification}:${finding.domain}:${index}`} className={`reconciliation-finding ${finding.classification}`}>
           <div className="reconciliation-finding-head">
             <strong>{finding.summary}</strong>
-            <span className={`reconciliation-tag ${finding.classification}`}>{findingLabel(finding.classification)}</span>
+            <div className="reconciliation-tag-group">
+              <span className={`reconciliation-tag ${finding.classification}`}>{findingLabel(finding.classification)}</span>
+              <span className={`reconciliation-source-badge ${findingSourceClass(finding.source)}`}>
+                {findingSourceLabel(finding.source)}
+              </span>
+            </div>
           </div>
           <p>{finding.rationale}</p>
           {finding.draftEvidence && (
@@ -296,6 +301,18 @@ function findingLabel(classification: ReconciliationFinding["classification"]) {
   if (classification === "duplicate") return "Already on file";
   if (classification === "contradiction") return "Conflicts with record";
   return "New";
+}
+
+function findingSourceLabel(source: ReconciliationFinding["source"]) {
+  if (source === "llm_semantic") return "AI semantic";
+  if (source === "deterministic") return "Rule-based";
+  return "Record check";
+}
+
+function findingSourceClass(source: ReconciliationFinding["source"]) {
+  if (source === "llm_semantic") return "llm";
+  if (source === "deterministic") return "deterministic";
+  return "unknown";
 }
 
 function findingsByAnswerLinkId(findings: ReconciliationFinding[]): Map<string, ReconciliationFinding[]> {

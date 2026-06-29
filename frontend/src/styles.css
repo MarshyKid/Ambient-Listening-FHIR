@@ -3224,6 +3224,14 @@ textarea {
   font-size: 14px;
 }
 
+.reconciliation-tag-group {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .reconciliation-finding p {
   margin: 0;
   color: var(--ink-2);
@@ -3253,6 +3261,29 @@ textarea {
 .reconciliation-tag.novel {
   background: var(--confirmed-tint);
   color: var(--confirmed);
+}
+
+.reconciliation-source-badge {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #f7f8f8;
+  color: var(--ink-2);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.reconciliation-source-badge.llm {
+  border-color: #bfd4ea;
+  background: #edf5fb;
+  color: var(--primary);
+}
+
+.reconciliation-source-badge.deterministic {
+  background: #f4f1ea;
+  color: var(--ink-2);
 }
 
 .reconciliation-evidence,

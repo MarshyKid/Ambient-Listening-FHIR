@@ -113,6 +113,19 @@ export interface IntakeQueryResult {
   error?: string;
 }
 
+export interface IntakeDetailResult {
+  requestUrl: string;
+  status: number;
+  statusText: string;
+  intake: IntakeSummary;
+  questionnaireResponse: Record<string, unknown>;
+  patient?: Record<string, unknown> | null;
+  questionnaire?: Record<string, unknown> | null;
+  encounter?: Record<string, unknown> | null;
+  practitioner?: Record<string, unknown> | null;
+  allergyIntolerances: Array<Record<string, unknown>>;
+}
+
 export type FhirQuestionnaireResponseAnswer =
   | { valueString: string }
   | { valueBoolean: boolean }

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.routers import deferred, health, patients, questionnaires, save, extract, intakes, auth
+from app.routers import deferred, health, patients, questionnaires, save, extract, intakes, auth, reconcile
 from app.services.fhir_client import FhirClientError, fhir_error_payload
 
 
@@ -32,6 +32,7 @@ def create_app() -> FastAPI:
     app.include_router(questionnaires.router)
     app.include_router(save.router)
     app.include_router(extract.router)
+    app.include_router(reconcile.router)
     app.include_router(intakes.router)
     app.include_router(auth.router)
     app.include_router(deferred.router)

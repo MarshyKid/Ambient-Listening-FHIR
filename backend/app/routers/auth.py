@@ -103,10 +103,10 @@ async def callback(request: Request):
 
 @router.get("/logout")
 async def logout(request: Request):
-    response = RedirectResponse(url="http://localhost:5173/")
+    response = RedirectResponse(url=env["FRONTEND_BASE_URL"])
 
     url = await auth0().logout(
-        options=LogoutOptions(return_to="http://localhost:5173/"),
+        options=LogoutOptions(return_to=env["FRONTEND_BASE_URL"]),
         store_options={
             "request": request,
             "response": response,

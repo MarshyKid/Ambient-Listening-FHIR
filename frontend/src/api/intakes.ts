@@ -1,4 +1,4 @@
-import type { IntakeQueryResult } from "../types";
+import type { IntakeDetailResult, IntakeQueryResult } from "../types";
 import { apiBaseUrl } from "./config";
 import { apiGet } from "./http";
 
@@ -21,4 +21,8 @@ export async function queryIntakes(requestUrl?: string): Promise<IntakeQueryResu
       error: error instanceof Error ? error.message : "Intake query failed."
     };
   }
+}
+
+export async function getIntakeDetail(questionnaireResponseId: string): Promise<IntakeDetailResult> {
+  return apiGet<IntakeDetailResult>(`/api/intakes/${encodeURIComponent(questionnaireResponseId)}`);
 }

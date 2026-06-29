@@ -215,6 +215,8 @@ def _draft_allergy_facts(
                 )
             )
         elif _looks_allergy_related(answer):
+            if isinstance(answer.value, bool):
+                continue
             text = _answer_text(answer)
             if text and not _is_negative_phrase(text):
                 facts.append(
@@ -253,8 +255,7 @@ def _draft_medication_facts(
 
     for answer in answers:
         text = _answer_text(answer)
-        link_text = answer.linkId.lower()
-        combined = f"{link_text} {text.lower() if text else ''}"
+        combined = _answer_context(answer)
         if "blood thinner" in combined and answer.value is False:
             facts.append(
                 DraftMedicationFact(
@@ -291,19 +292,18 @@ def _draft_medication_facts(
 
 
 def _looks_allergy_related(answer: ReconcileAnswer) -> bool:
-    haystack = f"{answer.linkId} {answer.evidence or ''}".lower()
-    return "allerg" in haystack or "allergen" in haystack
+    return _is_allergy_context(_answer_context(answer))
 
 
 def _is_negative_allergy_answer(answer: ReconcileAnswer) -> bool:
-    haystack = f"{answer.linkId} {answer.evidence or ''} {_answer_text(answer) or ''}".lower()
-    if "allerg" not in haystack:
+    haystack = _answer_context(answer)
+    if not _is_allergy_context(haystack):
         return False
-    return answer.value is False or "no known allerg" in haystack or "no allergies" in haystack
+    return answer.value is False or "no known allerg" in haystack or "no allergies" in haystack or _is_negative_phrase(_answer_text(answer) or "")
 
 
 def _looks_medication_related(answer: ReconcileAnswer) -> bool:
-    haystack = f"{answer.linkId} {answer.evidence or ''} {_answer_text(answer) or ''}".lower()
+    haystack = _answer_context(answer)
     return "medication" in haystack or "blood thinner" in haystack or bool(_known_medications_in_text(haystack))
 
 
@@ -317,8 +317,8 @@ def relevant_domains(request: object) -> set[ReconciliationDomain]:
             domains.add(suggestion.resourceType)
 
     for answer in answers:
-        haystack = f"{answer.linkId} {answer.evidence or ''} {_answer_text(answer) or ''}".lower()
-        if "allerg" in haystack or "allergen" in haystack:
+        haystack = _answer_context(answer)
+        if _is_allergy_context(haystack):
             domains.add("AllergyIntolerance")
         if any(token in haystack for token in ["medication", "blood thinner", "warfarin", "coumadin", "eliquis", "apixaban", "aspirin"]):
             domains.add("MedicationStatement")
@@ -357,8 +357,18 @@ def _answer_text(answer: ReconcileAnswer) -> str | None:
     return None
 
 
+def _answer_context(answer: ReconcileAnswer) -> str:
+    return f"{answer.linkId} {answer.questionText or ''} {answer.evidence or ''} {_answer_text(answer) or ''}".lower()
+
+
+def _is_allergy_context(value: str) -> bool:
+    return "allerg" in value or "allergen" in value or "adverse reaction" in value or "drug adverse" in value
+
+
 def _is_negative_phrase(text: str) -> bool:
     lower = text.lower()
+    if lower.strip() == "no":
+        return True
     return any(
         phrase in lower
         for phrase in [

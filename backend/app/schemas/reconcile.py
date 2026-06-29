@@ -11,6 +11,7 @@ ReconciliationDomain = Literal["AllergyIntolerance", "MedicationStatement"]
 
 class ReconcileAnswer(ApiModel):
     linkId: str
+    questionText: str | None = None
     valueType: Literal["string", "text", "boolean", "choice", "integer", "date", "dateTime"]
     value: Any
     confidence: float | None = Field(default=None, ge=0, le=1)

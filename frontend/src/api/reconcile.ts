@@ -49,6 +49,7 @@ function toReconcileAnswerRequest(answer: ExtractedAnswer): ReconcileRequest["an
   return [
     {
       linkId: answer.linkId,
+      questionText: answer.questionText ?? null,
       valueType: answer.itemType as ReviewedAnswerValueType,
       value,
       confidence: answer.confidence,

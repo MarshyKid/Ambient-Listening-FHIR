@@ -16,6 +16,7 @@ from app.services.fhir_client import FhirClientError, FhirHttpError
 from app.services.record_fact_mapper import AllergyFact, MedicationFact, allergy_fact, medication_fact
 from app.services.record_snapshot_service import RecordSnapshotService
 from app.services.reconciliation_agent_service import ReconciliationAgentService, relevant_domains
+from app.services.reconciliation_planner_service import ReconciliationPlannerService
 
 
 ALLOWED_DOMAINS: set[ReconciliationDomain] = {"AllergyIntolerance", "MedicationStatement"}
@@ -38,9 +39,15 @@ class ReconciliationGraphState(TypedDict, total=False):
 
 
 class ReconciliationGraph:
-    def __init__(self, snapshot_service: RecordSnapshotService, agent: ReconciliationAgentService) -> None:
+    def __init__(
+        self,
+        snapshot_service: RecordSnapshotService,
+        agent: ReconciliationAgentService,
+        planner: ReconciliationPlannerService | None = None,
+    ) -> None:
         self.snapshot_service = snapshot_service
         self.agent = agent
+        self.planner = planner
         self.graph = self._build_graph()
 
     async def ainvoke(self, request: ReconcileRequest) -> ReconcileResponse:
@@ -76,6 +83,8 @@ class ReconciliationGraph:
 
     async def prepare_request(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
         request = state["request"]
+        # TODO: In a future hardening pass, load the Questionnaire by questionnaireId and use it as the
+        # source-of-truth for linkId -> question text enrichment.
         return {
             **state,
             "normalizedPatientId": normalize_patient_id(request.patientId),
@@ -91,7 +100,43 @@ class ReconciliationGraph:
         }
 
     async def select_domains(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
-        return {**state, "selectedDomains": relevant_domains(state["request"])}
+        request = state["request"]
+        deterministic_domains = relevant_domains(request)
+        activity = list(state.get("activityTrail", []))
+
+        if not self.planner:
+            activity.append(
+                ReconciliationActivity(
+                    step="plan-record-domains",
+                    status="skipped",
+                    message="LLM planner disabled; used deterministic record check planning.",
+                )
+            )
+            return {**state, "selectedDomains": deterministic_domains, "activityTrail": activity}
+
+        try:
+            llm_domains = await self.planner.plan_domains(request)
+        except Exception:
+            activity.append(
+                ReconciliationActivity(
+                    step="plan-record-domains",
+                    status="failed",
+                    message="LLM planner failed; used deterministic record check planning.",
+                )
+            )
+            return {**state, "selectedDomains": deterministic_domains, "activityTrail": activity}
+
+        validated_llm_domains = llm_domains & ALLOWED_DOMAINS
+        selected_domains = deterministic_domains | validated_llm_domains
+        added_count = len(selected_domains - deterministic_domains)
+        activity.append(
+            ReconciliationActivity(
+                step="plan-record-domains",
+                status="completed",
+                message=f"Planned record checks using deterministic rules and LLM planner; added {added_count} domain(s).",
+            )
+        )
+        return {**state, "selectedDomains": selected_domains, "activityTrail": activity}
 
     async def validate_domains(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
         selected = state.get("selectedDomains", set())

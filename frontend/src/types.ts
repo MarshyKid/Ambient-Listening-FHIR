@@ -272,6 +272,7 @@ export type ReconciliationTargetKind = "answer" | "clinicalSuggestion" | "genera
 
 export interface ReconcileAnswerRequest {
   linkId: string;
+  questionText?: string | null;
   valueType: ReviewedAnswerValueType;
   value: unknown;
   confidence?: number | null;

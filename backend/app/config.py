@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="gpt-5.5", alias="LLM_MODEL")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     llm_timeout_seconds: float = Field(default=45, alias="LLM_TIMEOUT_SECONDS")
+    llm_reconciliation_planner_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_PLANNER_ENABLED")
 
     @field_validator("fhir_base_url", "questionnaire_canonical_base")
     @classmethod

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=45, alias="LLM_TIMEOUT_SECONDS")
     llm_reconciliation_planner_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_PLANNER_ENABLED")
     llm_reconciliation_semantic_compare_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_SEMANTIC_COMPARE_ENABLED")
+    llm_intake_recommendation_enabled: bool = Field(default=False, alias="LLM_INTAKE_RECOMMENDATION_ENABLED")
 
     @field_validator("fhir_base_url", "questionnaire_canonical_base")
     @classmethod

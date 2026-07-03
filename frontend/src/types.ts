@@ -208,6 +208,57 @@ export interface Questionnaire extends Omit<QuestionnaireSummary, "itemCount"> {
   items: QuestionnaireItem[];
 }
 
+export interface IntakeRecommendationRequest {
+  patientId: string;
+  questionnaireIds?: string[];
+}
+
+export interface PatientRecordFact {
+  display: string;
+  status?: string | null;
+  resourceRef: string;
+}
+
+export interface InformationGap {
+  code: string;
+  message: string;
+  evidenceRefs: string[];
+}
+
+export interface PatientRecommendationSummary {
+  activeConditions: PatientRecordFact[];
+  currentMedications: PatientRecordFact[];
+  knownAllergies: PatientRecordFact[];
+  informationGaps: InformationGap[];
+}
+
+export interface IntakeQuestionnaireRecommendation {
+  questionnaireId: string;
+  title: string;
+  version?: string | null;
+  itemCount?: number | null;
+  reason: string;
+  confidence: number;
+  evidenceRefs: string[];
+}
+
+export interface IntakeRecommendationRecordsChecked {
+  conditionCount: number;
+  medicationStatementCount: number;
+  allergyIntoleranceCount: number;
+  questionnaireResponseCount: number;
+  questionnaireCount: number;
+}
+
+export interface IntakeRecommendationResponse {
+  patientId: string;
+  overview: string;
+  summary: PatientRecommendationSummary;
+  recommendations: IntakeQuestionnaireRecommendation[];
+  recordsChecked: IntakeRecommendationRecordsChecked;
+  warnings: string[];
+}
+
 export interface BackendExtractRequest {
   questionnaireId: string;
   transcript: string;

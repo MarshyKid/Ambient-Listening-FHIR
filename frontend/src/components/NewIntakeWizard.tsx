@@ -150,6 +150,7 @@ export default function NewIntakeWizard() {
 
       {currentStep === 1 && selectedPatient && (
         <QuestionnaireSelection
+          patient={selectedPatient}
           selectedQuestionnaire={selectedQuestionnaire}
           onSelectQuestionnaire={handleSelectQuestionnaire}
           onContinue={() => selectedQuestionnaire && setCurrentStep(2)}

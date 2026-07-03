@@ -6,7 +6,16 @@ import QuestionnaireSelection from "./QuestionnaireSelection";
 import ReviewExtraction from "./ReviewExtraction";
 import SaveConfirmation from "./SaveConfirmation";
 import Stepper from "./Stepper";
-import type { ClinicalSuggestion, ExtractedAnswer, ExtractionResult, PatientSummary, Questionnaire, ReconcileResponse, SaveResult } from "../types";
+import type {
+  ClinicalSuggestion,
+  EncounterDraft,
+  ExtractedAnswer,
+  ExtractionResult,
+  PatientSummary,
+  Questionnaire,
+  ReconcileResponse,
+  SaveResult
+} from "../types";
 import { reconcileDraft } from "../api/reconcile";
 
 const steps = ["Patient", "Questionnaire", "Conversation", "Review", "Save"];
@@ -18,6 +27,7 @@ export default function NewIntakeWizard() {
   const [transcript, setTranscript] = useState("");
   const [reviewedAnswers, setReviewedAnswers] = useState<ExtractedAnswer[]>([]);
   const [clinicalSuggestions, setClinicalSuggestions] = useState<ClinicalSuggestion[]>([]);
+  const [encounterDraft, setEncounterDraft] = useState<EncounterDraft | null>(null);
   const [reconciliationResult, setReconciliationResult] = useState<ReconcileResponse | null>(null);
   const [reconciliationLoading, setReconciliationLoading] = useState(false);
   const [reconciliationError, setReconciliationError] = useState<string | null>(null);
@@ -39,6 +49,7 @@ export default function NewIntakeWizard() {
     setTranscript("");
     setReviewedAnswers([]);
     setClinicalSuggestions([]);
+    setEncounterDraft(null);
     setReconciliationResult(null);
     setReconciliationLoading(false);
     setReconciliationError(null);
@@ -49,6 +60,7 @@ export default function NewIntakeWizard() {
     setTranscript("");
     setReviewedAnswers([]);
     setClinicalSuggestions([]);
+    setEncounterDraft(null);
     setReconciliationResult(null);
     setReconciliationLoading(false);
     setReconciliationError(null);
@@ -58,6 +70,7 @@ export default function NewIntakeWizard() {
   function clearFromTranscript() {
     setReviewedAnswers([]);
     setClinicalSuggestions([]);
+    setEncounterDraft(null);
     setReconciliationResult(null);
     setReconciliationLoading(false);
     setReconciliationError(null);
@@ -90,6 +103,7 @@ export default function NewIntakeWizard() {
     const nextSuggestions = result.clinicalSuggestions;
     setReviewedAnswers(nextAnswers);
     setClinicalSuggestions(nextSuggestions);
+    setEncounterDraft(createInitialEncounterDraft());
     setReconciliationResult(null);
     setReconciliationError(null);
     setSaveResult(null);
@@ -158,6 +172,7 @@ export default function NewIntakeWizard() {
           questionnaire={selectedQuestionnaire}
           answers={reviewedAnswers}
           clinicalSuggestions={clinicalSuggestions}
+          encounterDraft={encounterDraft}
           reconciliationResult={reconciliationResult}
           reconciliationLoading={reconciliationLoading}
           reconciliationError={reconciliationError}
@@ -169,14 +184,19 @@ export default function NewIntakeWizard() {
             setClinicalSuggestions(suggestions);
             setSaveResult(null);
           }}
+          onEncounterChange={(encounter) => {
+            setEncounterDraft(encounter);
+            setSaveResult(null);
+          }}
           onContinue={() => setCurrentStep(4)}
         />
       )}
 
-      {currentStep === 4 && selectedPatient && selectedQuestionnaire && hasExtraction && (
+      {currentStep === 4 && selectedPatient && selectedQuestionnaire && hasExtraction && encounterDraft && (
         <SaveConfirmation
           patient={selectedPatient}
           questionnaire={selectedQuestionnaire}
+          encounter={encounterDraft}
           answers={reviewedAnswers}
           clinicalSuggestions={clinicalSuggestions}
           saveResult={saveResult}
@@ -185,4 +205,19 @@ export default function NewIntakeWizard() {
       )}
     </>
   );
+}
+
+function createInitialEncounterDraft(): EncounterDraft {
+  return {
+    status: "in-progress",
+    classCode: "AMB",
+    periodStart: currentDateTimeLocal(),
+    reasonText: ""
+  };
+}
+
+function currentDateTimeLocal(): string {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16);
 }

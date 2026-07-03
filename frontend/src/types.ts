@@ -332,6 +332,7 @@ export interface ReconcileResponse {
 export interface SavePayload {
   patientId: string;
   questionnaireId: string;
+  encounter: EncounterDraft;
   answers: ExtractedAnswer[];
   clinicalSuggestions: ClinicalSuggestion[];
 }
@@ -354,10 +355,21 @@ export interface AcceptedSuggestionRequest {
   fields: Record<string, string>;
 }
 
+export type EncounterStatus = "planned" | "in-progress" | "finished" | "cancelled";
+export type EncounterClassCode = "AMB" | "EMER" | "IMP" | "OBSENC";
+
+export interface EncounterDraft {
+  status: EncounterStatus;
+  classCode: EncounterClassCode;
+  periodStart: string;
+  reasonText: string;
+}
+
 export interface BackendSaveRequest {
   patientId: string;
   practitionerId: string;
   questionnaireId: string;
+  encounter: EncounterDraft;
   answers: ReviewedAnswerRequest[];
   acceptedSuggestions: AcceptedSuggestionRequest[];
 }

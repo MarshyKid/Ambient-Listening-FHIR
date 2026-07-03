@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 
 def utc_now() -> datetime:
@@ -9,19 +9,33 @@ def iso_utc(value: datetime) -> str:
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def build_encounter(*, patient_id: str, start: datetime, end: datetime | None = None) -> dict:
-    actual_end = end or utc_now()
-    if actual_end <= start:
-        actual_end = start + timedelta(seconds=1)
+ENCOUNTER_CLASS_DISPLAY = {
+    "AMB": "ambulatory",
+    "EMER": "emergency",
+    "IMP": "inpatient encounter",
+    "OBSENC": "observation encounter",
+}
 
-    return {
+
+def build_encounter(
+    *,
+    patient_id: str,
+    status: str,
+    class_code: str,
+    start: datetime,
+    reason_text: str | None = None,
+) -> dict:
+    resource = {
         "resourceType": "Encounter",
-        "status": "finished",
+        "status": status,
         "class": {
             "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
-            "code": "AMB",
-            "display": "ambulatory",
+            "code": class_code,
+            "display": ENCOUNTER_CLASS_DISPLAY.get(class_code, class_code),
         },
         "subject": {"reference": f"Patient/{patient_id}"},
-        "period": {"start": iso_utc(start), "end": iso_utc(actual_end)},
+        "period": {"start": iso_utc(start)},
     }
+    if reason_text and reason_text.strip():
+        resource["reasonCode"] = [{"text": reason_text.strip()}]
+    return resource

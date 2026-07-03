@@ -1,5 +1,7 @@
 from typing import Any, Literal
 
+from pydantic import ConfigDict
+
 from .common import ApiModel, FhirJson
 
 
@@ -14,10 +16,20 @@ class AcceptedSuggestion(ApiModel):
     fields: dict[str, str] = {}
 
 
+class EncounterDraft(ApiModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    status: Literal["planned", "in-progress", "finished", "cancelled"] = "in-progress"
+    classCode: Literal["AMB", "EMER", "IMP", "OBSENC"] = "AMB"
+    periodStart: str
+    reasonText: str | None = None
+
+
 class SaveRequest(ApiModel):
     patientId: str
     practitionerId: str
     questionnaireId: str
+    encounter: EncounterDraft | None = None
     answers: list[ReviewedAnswer]
     acceptedSuggestions: list[AcceptedSuggestion] = []
 

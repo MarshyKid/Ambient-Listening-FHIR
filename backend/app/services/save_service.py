@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -37,7 +38,6 @@ class SaveService:
         self.questionnaire_service = questionnaire_service
 
     async def save(self, request: SaveRequest) -> SaveResponse:
-        started_at = utc_now()
         audit_base = {
             "patientId": request.patientId,
             "practitionerId": request.practitionerId,
@@ -49,12 +49,21 @@ class SaveService:
             practitioner = await self.practitioner_service.resolve_practitioner(request.practitionerId)
             questionnaire = await self.questionnaire_service.read_questionnaire_resource(request.questionnaireId)
             questionnaire_reference = questionnaire_response_questionnaire_reference(questionnaire)
+            if request.encounter is None:
+                raise HTTPException(status_code=400, detail="Encounter draft is required before saving.")
 
             qr_items = self._validate_and_build_answers(request.answers, questionnaire)
+            encounter_start = parse_fhir_datetime(request.encounter.periodStart, field_name="encounter.periodStart")
             authored_at = utc_now()
             encounter_full_url = f"urn:uuid:{uuid4()}"
             questionnaire_response_full_url = f"urn:uuid:{uuid4()}"
-            encounter = build_encounter(patient_id=str(patient["id"]), start=started_at, end=authored_at)
+            encounter = build_encounter(
+                patient_id=str(patient["id"]),
+                status=request.encounter.status,
+                class_code=request.encounter.classCode,
+                start=encounter_start,
+                reason_text=request.encounter.reasonText,
+            )
             questionnaire_response = build_questionnaire_response(
                 questionnaire_canonical=questionnaire_reference,
                 patient_id=str(patient["id"]),
@@ -88,6 +97,8 @@ class SaveService:
                         "resolvedPractitionerFhirId": practitioner.id,
                         "resolvedQuestionnaireFhirId": questionnaire.get("id"),
                         "questionnaireReference": questionnaire_reference,
+                        "encounterStatus": request.encounter.status,
+                        "encounterClassCode": request.encounter.classCode,
                         "createdResourceIds": [],
                         "saveStatus": "failed",
                         "errorMessage": message,
@@ -117,6 +128,8 @@ class SaveService:
                     "resolvedPractitionerFhirId": practitioner.id,
                     "resolvedQuestionnaireFhirId": questionnaire.get("id"),
                     "questionnaireReference": questionnaire_reference,
+                    "encounterStatus": request.encounter.status,
+                    "encounterClassCode": request.encounter.classCode,
                     "createdResourceIds": [item.model_dump() for item in created],
                     "saveStatus": "success",
                     "errorMessage": None,
@@ -277,6 +290,22 @@ def questionnaire_response_questionnaire_reference(questionnaire: dict) -> str:
 
 def _http_exception_message(exc: HTTPException) -> str:
     return exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+
+
+def parse_fhir_datetime(value: str, *, field_name: str) -> datetime:
+    if not isinstance(value, str) or not _is_full_fhir_datetime(value):
+        raise HTTPException(status_code=400, detail=f"Expected full FHIR dateTime with timezone for {field_name}.")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid FHIR dateTime for {field_name}.") from exc
+    if parsed.tzinfo is None:
+        raise HTTPException(status_code=400, detail=f"Expected timezone for {field_name}.")
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_full_fhir_datetime(value: str) -> bool:
+    return bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})", value))
 
 
 def _is_fhir_datetime(value: str) -> bool:

@@ -1,6 +1,8 @@
 import { useState, type ChangeEvent } from "react";
 import type {
   ClinicalSuggestion,
+  EncounterClassCode,
+  EncounterDraft,
   ExtractedAnswer,
   ExtractedValue,
   PatientSummary,
@@ -15,17 +17,20 @@ import { flattenAnswerableItems, hasAnswerValue, manualEntryEvidence } from "../
 import { choiceOptionDisplay, choiceOptionInputValue, choiceOptionKey, selectedChoiceInputValue } from "../utils/choiceOptions";
 import ConfidenceBadge from "./ConfidenceBadge";
 import { defaultQuestionnaireResponseUrl } from "../api/questionnaires";
+import { normalizeFhirDateTime } from "../utils/fhirDateTime";
 
 interface ReviewExtractionProps {
   patient: PatientSummary;
   questionnaire: Questionnaire;
   answers: ExtractedAnswer[];
   clinicalSuggestions: ClinicalSuggestion[];
+  encounterDraft: EncounterDraft | null;
   reconciliationResult: ReconcileResponse | null;
   reconciliationLoading: boolean;
   reconciliationError: string | null;
   onAnswersChange: (answers: ExtractedAnswer[]) => void;
   onSuggestionsChange: (suggestions: ClinicalSuggestion[]) => void;
+  onEncounterChange: (encounter: EncounterDraft | null) => void;
   onContinue: () => void;
 }
 
@@ -59,6 +64,43 @@ function isInvalidAllergyResource(suggestion: ClinicalSuggestion) {
   if (suggestion.resourceType !== "AllergyIntolerance") return false;
   const source = clinicalResourceSource(suggestion);
   return (source === "manual" || suggestion.accepted) && !clinicalResourceHasRequiredSubstance(suggestion);
+}
+
+const encounterClassLabels: Record<EncounterClassCode, string> = {
+  AMB: "ambulatory",
+  EMER: "emergency",
+  IMP: "inpatient encounter",
+  OBSENC: "observation encounter"
+};
+
+function isInvalidEncounterDraft(encounter: EncounterDraft | null) {
+  return !encounter || encounter.periodStart.trim().length === 0;
+}
+
+function buildEncounterPreview(patient: PatientSummary, encounter: EncounterDraft | null) {
+  if (!encounter) return null;
+  const resource: Record<string, unknown> = {
+    resourceType: "Encounter",
+    status: encounter.status,
+    class: {
+      system: "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+      code: encounter.classCode,
+      display: encounterClassLabels[encounter.classCode]
+    },
+    subject: {
+      reference: `Patient/${patient.id}`,
+      display: patient.name
+    },
+    period: {
+      start: encounter.periodStart.trim() ? normalizeFhirDateTime(encounter.periodStart) : ""
+    }
+  };
+
+  if (encounter.reasonText.trim()) {
+    resource.reasonCode = [{ text: encounter.reasonText.trim() }];
+  }
+
+  return resource;
 }
 
 function makeManualAllergyIntolerance(): ClinicalSuggestion {
@@ -472,6 +514,92 @@ function ReviewSectionAccordion({
   );
 }
 
+function EncounterReviewPanel({
+  patient,
+  encounter,
+  onEncounterChange
+}: {
+  patient: PatientSummary;
+  encounter: EncounterDraft | null;
+  onEncounterChange: (encounter: EncounterDraft | null) => void;
+}) {
+  const preview = buildEncounterPreview(patient, encounter);
+  const hasInvalidEncounter = isInvalidEncounterDraft(encounter);
+
+  function updateEncounter(patch: Partial<EncounterDraft>) {
+    if (!encounter) {
+      onEncounterChange({
+        status: "in-progress",
+        classCode: "AMB",
+        periodStart: "",
+        reasonText: "",
+        ...patch
+      });
+      return;
+    }
+    onEncounterChange({ ...encounter, ...patch });
+  }
+
+  return (
+    <section className="card section-card encounter-review-panel">
+      <div className="review-card-header">
+        <div>
+          <h2>Encounter</h2>
+          <p className="muted compact-empty">Review the Encounter that will be created with this intake. End date is omitted while the encounter is in progress.</p>
+        </div>
+      </div>
+
+      {hasInvalidEncounter && <p className="query-error">Encounter start date and time is required before saving.</p>}
+
+      <div className="field-grid">
+        <label>
+          Status
+          <select value={encounter?.status ?? "in-progress"} onChange={(event) => updateEncounter({ status: event.target.value as EncounterDraft["status"] })}>
+            <option value="planned">Planned</option>
+            <option value="in-progress">In progress</option>
+            <option value="finished">Finished</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+
+        <label>
+          Class
+          <select value={encounter?.classCode ?? "AMB"} onChange={(event) => updateEncounter({ classCode: event.target.value as EncounterClassCode })}>
+            <option value="AMB">Ambulatory</option>
+            <option value="EMER">Emergency</option>
+            <option value="IMP">Inpatient</option>
+            <option value="OBSENC">Observation</option>
+          </select>
+        </label>
+
+        <label>
+          Start date and time
+          <input
+            type="datetime-local"
+            value={encounter?.periodStart ?? ""}
+            aria-invalid={hasInvalidEncounter}
+            onChange={(event) => updateEncounter({ periodStart: event.target.value })}
+          />
+        </label>
+
+        <label>
+          Reason
+          <input
+            value={encounter?.reasonText ?? ""}
+            placeholder="Optional reason for encounter"
+            onChange={(event) => updateEncounter({ reasonText: event.target.value })}
+          />
+        </label>
+      </div>
+
+      <details className="raw-response">
+        <summary>FHIR Encounter preview</summary>
+        <pre>{preview ? JSON.stringify(preview, null, 2) : "Encounter is missing."}</pre>
+      </details>
+    </section>
+  );
+}
+
 function ClinicalSuggestionsPanel({
   suggestions,
   findingsBySuggestionIndex,
@@ -576,11 +704,13 @@ export default function ReviewExtraction({
   questionnaire,
   answers,
   clinicalSuggestions,
+  encounterDraft,
   reconciliationResult,
   reconciliationLoading,
   reconciliationError,
   onAnswersChange,
   onSuggestionsChange,
+  onEncounterChange,
   onContinue
 }: ReviewExtractionProps) {
   const [requestUrl, setRequestUrl] = useState(defaultQuestionnaireResponseUrl);
@@ -591,6 +721,7 @@ export default function ReviewExtraction({
   const answeredCount = answers.filter((answer) => hasAnswerValue(answer.value)).length;
   const unansweredCount = answers.length - answeredCount;
   const hasInvalidAllergyResource = clinicalSuggestions.some(isInvalidAllergyResource);
+  const hasInvalidEncounter = isInvalidEncounterDraft(encounterDraft);
   const sections = getReviewSections(questionnaire.items);
   const questionnaireResponsePreview = buildQuestionnaireResponsePreview({
     requestUrl,
@@ -683,6 +814,8 @@ export default function ReviewExtraction({
         hasInvalidAllergyResource={hasInvalidAllergyResource}
       />
 
+      <EncounterReviewPanel patient={patient} encounter={encounterDraft} onEncounterChange={onEncounterChange} />
+
       <FhirPreviewPanel
         requestUrl={requestUrl}
         responseBody={responseBody}
@@ -699,7 +832,10 @@ export default function ReviewExtraction({
         {hasInvalidAllergyResource && (
           <span className="continue-helper zero-answer-warning">Substance is required for AllergyIntolerance resources.</span>
         )}
-        <button className="primary-button" type="button" onClick={onContinue} disabled={hasInvalidAllergyResource}>
+        {hasInvalidEncounter && (
+          <span className="continue-helper zero-answer-warning">Encounter start date and time is required before saving.</span>
+        )}
+        <button className="primary-button" type="button" onClick={onContinue} disabled={hasInvalidAllergyResource || hasInvalidEncounter}>
           Continue to Save ({answeredCount} answered)
         </button>
       </div>

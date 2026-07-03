@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { BackendApiError, buildBackendSaveRequest, saveToBackend } from "../api/save";
-import type { ClinicalSuggestion, ExtractedAnswer, PatientSummary, Questionnaire, SaveResult } from "../types";
+import type { ClinicalSuggestion, EncounterClassCode, EncounterDraft, ExtractedAnswer, PatientSummary, Questionnaire, SaveResult } from "../types";
 import { hasAnswerValue } from "../utils/questionnaireItems";
 
 interface SaveConfirmationProps {
   patient: PatientSummary;
   questionnaire: Questionnaire;
+  encounter: EncounterDraft;
   answers: ExtractedAnswer[];
   clinicalSuggestions: ClinicalSuggestion[];
   saveResult: SaveResult | null;
@@ -27,6 +28,7 @@ interface TransactionEntry {
 export default function SaveConfirmation({
   patient,
   questionnaire,
+  encounter,
   answers,
   clinicalSuggestions,
   saveResult,
@@ -46,6 +48,7 @@ export default function SaveConfirmation({
       const payload = buildBackendSaveRequest({
         patient,
         questionnaire,
+        encounter,
         answers,
         clinicalSuggestions
       });
@@ -85,6 +88,13 @@ export default function SaveConfirmation({
             <span>Questionnaire</span>
             <strong>{questionnaire.title}</strong>
             <small>Version {questionnaire.version}</small>
+          </div>
+          <div>
+            <span>Encounter</span>
+            <strong>{encounterStatusLabel(encounter.status)}</strong>
+            <small>
+              {encounterClassLabel(encounter.classCode)} - starts {formatEncounterStart(encounter.periodStart)}
+            </small>
           </div>
           <div>
             <span>Answered items</span>
@@ -133,6 +143,31 @@ export default function SaveConfirmation({
       {saveResult && <SaveSuccess saveResult={saveResult} />}
     </section>
   );
+}
+
+function encounterStatusLabel(status: EncounterDraft["status"]) {
+  if (status === "in-progress") return "In progress";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function encounterClassLabel(classCode: EncounterClassCode) {
+  if (classCode === "AMB") return "Ambulatory";
+  if (classCode === "EMER") return "Emergency";
+  if (classCode === "IMP") return "Inpatient";
+  return "Observation";
+}
+
+function formatEncounterStart(value: string) {
+  if (!value) return "not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
 }
 
 function SaveSuccess({ saveResult }: { saveResult: SaveResult }) {

@@ -3,6 +3,7 @@ import type {
   BackendSaveRequest,
   BackendSaveResponse,
   ClinicalSuggestion,
+  EncounterDraft,
   ExtractedAnswer,
   PatientSummary,
   Questionnaire,
@@ -31,6 +32,7 @@ export class BackendApiError extends Error {
 export function buildBackendSaveRequest(params: {
   patient: PatientSummary;
   questionnaire: Questionnaire;
+  encounter: EncounterDraft;
   answers: ExtractedAnswer[];
   clinicalSuggestions: ClinicalSuggestion[];
 }): BackendSaveRequest {
@@ -38,6 +40,12 @@ export function buildBackendSaveRequest(params: {
     patientId: params.patient.id,
     practitionerId: defaultPractitionerIdentifier,
     questionnaireId: params.questionnaire.id,
+    encounter: {
+      status: params.encounter.status,
+      classCode: params.encounter.classCode,
+      periodStart: normalizeFhirDateTime(params.encounter.periodStart),
+      reasonText: params.encounter.reasonText.trim()
+    },
     answers: params.answers.flatMap(toReviewedAnswerRequest),
     acceptedSuggestions: params.clinicalSuggestions.flatMap(toAcceptedSuggestionRequest)
   };

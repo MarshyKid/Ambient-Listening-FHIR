@@ -46,7 +46,7 @@ and return
 
 def extraction_service(client: FhirClient = Depends(current_fhir_client), settings: Settings = Depends(get_settings)) -> ExtractionService:
     llmservice = LlmService(settings)
-    return ExtractionService(QuestionnaireService(client, settings), llmservice)
+    return ExtractionService(QuestionnaireService(client, settings), llmservice, settings)
 
 
 @router.get("")

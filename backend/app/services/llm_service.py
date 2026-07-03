@@ -51,6 +51,11 @@ class LlmService:
             or os.getenv("LLM_TIMEOUT_SECONDS")
             or 45
         )
+        self.default_clinical_timezone = (
+            getattr(settings, "default_clinical_timezone", None)
+            or os.getenv("DEFAULT_CLINICAL_TIMEZONE")
+            or "Asia/Singapore"
+        )
 
     async def extract_answers(
         self,
@@ -148,6 +153,7 @@ class LlmService:
                                 {
                                     "transcript": transcript,
                                     "questionnaireItems": questionnaire_items,
+                                    "defaultTimezone": self.default_clinical_timezone,
                                 },
                                 ensure_ascii=False,
                             ),
@@ -211,7 +217,11 @@ Rules:
 - For coded choice options, use {"fhirValueType":"valueCoding","system":"...","code":"..."}.
 - For string choice options, use {"fhirValueType":"valueString","value":"..."}.
 - For date values, use YYYY-MM-DD.
-- For dateTime values, use full FHIR dateTime with seconds and timezone, for example 2026-06-19T15:23:00+08:00.
+- For dateTime values, use a full FHIR dateTime with seconds and timezone.
+- Valid dateTime examples: 2026-06-22T02:15:00Z and 2026-06-22T02:15:00+08:00.
+- If the transcript gives a local date and time without a timezone, use the supplied defaultTimezone.
+- Do not invent a different timezone.
+- Do not return a dateTime without Z or an explicit UTC offset.
 - Evidence should be a short quote or close paraphrase from the transcript.
 - Confidence must be between 0 and 1.
 - clinicalSuggestions may only contain AllergyIntolerance suggestions.
@@ -249,6 +259,81 @@ Rules:
                 return link_id
         return None
 
+FHIR_DATETIME_PATTERN = (
+    r"^\d{4}-\d{2}-\d{2}"
+    r"T\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d+)?"
+    r"(?:Z|[+-]\d{2}:\d{2})$"
+)
+
+COMMON_ANSWER_PROPERTIES: dict[str, Any] = {
+    "linkId": {"type": "string"},
+    "confidence": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+    },
+    "evidence": {"type": "string"},
+    "status": {
+        "type": "string",
+        "enum": ["suggested"],
+    },
+}
+
+
+def _answer_schema(value_type: str, value_schema: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            **COMMON_ANSWER_PROPERTIES,
+            "valueType": {
+                "type": "string",
+                "enum": [value_type],
+            },
+            "value": value_schema,
+        },
+        "required": ["linkId", "valueType", "value", "confidence", "evidence", "status"],
+    }
+
+
+STRING_ANSWER_SCHEMA = _answer_schema("string", {"type": "string"})
+TEXT_ANSWER_SCHEMA = _answer_schema("text", {"type": "string"})
+BOOLEAN_ANSWER_SCHEMA = _answer_schema("boolean", {"type": "boolean"})
+INTEGER_ANSWER_SCHEMA = _answer_schema("integer", {"type": "integer"})
+DATE_ANSWER_SCHEMA = _answer_schema("date", {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$"})
+DATETIME_ANSWER_SCHEMA = _answer_schema("dateTime", {"type": "string", "pattern": FHIR_DATETIME_PATTERN})
+CHOICE_CODING_ANSWER_SCHEMA = _answer_schema(
+    "choice",
+    {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "fhirValueType": {
+                "type": "string",
+                "enum": ["valueCoding"],
+            },
+            "system": {"type": "string"},
+            "code": {"type": "string"},
+        },
+        "required": ["fhirValueType", "system", "code"],
+    },
+)
+CHOICE_STRING_ANSWER_SCHEMA = _answer_schema(
+    "choice",
+    {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "fhirValueType": {
+                "type": "string",
+                "enum": ["valueString"],
+            },
+            "value": {"type": "string"},
+        },
+        "required": ["fhirValueType", "value"],
+    },
+)
 
 EXTRACTION_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -257,58 +342,16 @@ EXTRACTION_OUTPUT_SCHEMA: dict[str, Any] = {
         "answers": {
             "type": "array",
             "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "linkId": {"type": "string"},
-                    "valueType": {
-                        "type": "string",
-                        "enum": ["string", "text", "boolean", "choice", "integer", "date", "dateTime"],
-                    },
-                    "value": {
-                        "anyOf": [
-                            {"type": "string"},
-                            {"type": "boolean"},
-                            {"type": "integer"},
-                            {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "properties": {
-                                    "fhirValueType": {
-                                        "type": "string",
-                                        "enum": ["valueCoding"],
-                                    },
-                                    "system": {"type": "string"},
-                                    "code": {"type": "string"},
-                                },
-                                "required": ["fhirValueType", "system", "code"],
-                            },
-                            {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "properties": {
-                                    "fhirValueType": {
-                                        "type": "string",
-                                        "enum": ["valueString"],
-                                    },
-                                    "value": {"type": "string"},
-                                },
-                                "required": ["fhirValueType", "value"],
-                            },
-                        ]
-                    },
-                    "confidence": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1,
-                    },
-                    "evidence": {"type": "string"},
-                    "status": {
-                        "type": "string",
-                        "enum": ["suggested"],
-                    },
-                },
-                "required": ["linkId", "valueType", "value", "confidence", "evidence", "status"],
+                "anyOf": [
+                    STRING_ANSWER_SCHEMA,
+                    TEXT_ANSWER_SCHEMA,
+                    BOOLEAN_ANSWER_SCHEMA,
+                    INTEGER_ANSWER_SCHEMA,
+                    DATE_ANSWER_SCHEMA,
+                    DATETIME_ANSWER_SCHEMA,
+                    CHOICE_CODING_ANSWER_SCHEMA,
+                    CHOICE_STRING_ANSWER_SCHEMA,
+                ]
             },
         },
         "clinicalSuggestions": {

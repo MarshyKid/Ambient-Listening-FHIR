@@ -1,4 +1,5 @@
 from functools import lru_cache
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,11 +32,21 @@ class Settings(BaseSettings):
     llm_reconciliation_planner_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_PLANNER_ENABLED")
     llm_reconciliation_semantic_compare_enabled: bool = Field(default=False, alias="LLM_RECONCILIATION_SEMANTIC_COMPARE_ENABLED")
     llm_intake_recommendation_enabled: bool = Field(default=False, alias="LLM_INTAKE_RECOMMENDATION_ENABLED")
+    default_clinical_timezone: str = Field(default="Asia/Singapore", alias="DEFAULT_CLINICAL_TIMEZONE")
 
     @field_validator("fhir_base_url", "questionnaire_canonical_base")
     @classmethod
     def strip_trailing_slash(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @field_validator("default_clinical_timezone")
+    @classmethod
+    def validate_default_clinical_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"DEFAULT_CLINICAL_TIMEZONE is not a valid IANA timezone: {value}") from exc
+        return value
 
     @property
     def cors_origins(self) -> list[str]:

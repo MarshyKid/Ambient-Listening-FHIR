@@ -1,28 +1,45 @@
+from datetime import datetime
 import re
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from fastapi import HTTPException
 
+from app.config import Settings
 from app.fhir.questionnaire_mapper import find_choice_answer, questionnaire_items_by_link_id
 from app.schemas.extract import ExtractRequest, ExtractResponse, ExtractedAnswerCandidate, ClinicalSuggestionCandidate
 from app.services.questionnaire_service import QuestionnaireService
 from app.services.llm_service import LlmService
 
+FHIR_DATETIME_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}"
+    r"T\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d+)?"
+    r"(?:Z|[+-]\d{2}:\d{2})$"
+)
+LOCAL_COMPLETE_DATETIME_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}"
+    r"T\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d+)?$"
+)
+
 
 class ExtractionService:
-    def __init__(self, questionnaire_service: QuestionnaireService, llm_service: LlmService) -> None:
+    def __init__(self, questionnaire_service: QuestionnaireService, llm_service: LlmService, settings: Settings) -> None:
         self.questionnaire_service = questionnaire_service
         self.llm_service = llm_service
+        self.settings = settings
 
     async def extract(self, request: ExtractRequest) -> ExtractResponse:
         questionnaire = await self.questionnaire_service.read_questionnaire_resource(request.questionnaireId)
         questionnaire_items = ExtractionService.questionnaire_prompt_items(questionnaire)
 
-        #raw_result = self._fake_extract(request.transcript)
         raw_llm_json = await self.llm_service.extract_answers(
             transcript = request.transcript,
             questionnaire_items=questionnaire_items
         )
         parsed = ExtractResponse.model_validate(raw_llm_json)
-        validated = self._validate_result(parsed, questionnaire)
+        normalized = self._normalize_datetime_answers(parsed)
+        validated = self._validate_result(normalized, questionnaire)
 
         return validated
 
@@ -75,6 +92,22 @@ class ExtractionService:
 
         return ExtractResponse(answers=answers, clinicalSuggestions=suggestions)
 
+    def _normalize_datetime_answers(self, result: ExtractResponse) -> ExtractResponse:
+        normalized_answers: list[ExtractedAnswerCandidate] = []
+        for answer in result.answers:
+            if answer.valueType == "dateTime" and isinstance(answer.value, str):
+                try:
+                    normalized_value = normalize_fhir_datetime(
+                        answer.value,
+                        default_timezone=self.settings.default_clinical_timezone,
+                    )
+                except ValueError as exc:
+                    raise HTTPException(status_code=500, detail=str(exc)) from exc
+                normalized_answers.append(answer.model_copy(update={"value": normalized_value}))
+            else:
+                normalized_answers.append(answer)
+        return result.model_copy(update={"answers": normalized_answers})
+
     def _validate_result(self, result: ExtractResponse, questionnaire: dict) -> ExtractResponse:
         items_by_link_id = questionnaire_items_by_link_id(questionnaire)
 
@@ -120,7 +153,13 @@ class ExtractionService:
 
         if answer.valueType == "dateTime":
             if not isinstance(answer.value, str) or not _is_fhir_datetime(answer.value):
-                raise HTTPException(status_code=422, detail=f"Expected FHIR dateTime value for {answer.linkId}.")
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        f"Expected FHIR dateTime for {answer.linkId}, including seconds "
+                        "and timezone, for example 2026-06-22T02:15:00+08:00."
+                    ),
+                )
             return
 
         if answer.valueType == "choice":
@@ -137,12 +176,39 @@ class ExtractionService:
         raise HTTPException(status_code=422, detail=f"Unsupported valueType: {answer.valueType}")
     
 def _is_fhir_datetime(value: str) -> bool:
-    return bool(
-        re.fullmatch(
-            r"\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?)?)?",
-            value,
-        )
-    )
+    return bool(FHIR_DATETIME_PATTERN.fullmatch(value))
+
+
+def normalize_fhir_datetime(value: str, *, default_timezone: str) -> str:
+    if _is_fhir_datetime(value):
+        parsed = _parse_datetime(value)
+        return _format_datetime(parsed, use_z=value.endswith("Z"))
+
+    if LOCAL_COMPLETE_DATETIME_PATTERN.fullmatch(value):
+        try:
+            timezone = ZoneInfo(default_timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"DEFAULT_CLINICAL_TIMEZONE is not a valid IANA timezone: {default_timezone}") from exc
+        try:
+            parsed = datetime.fromisoformat(value).replace(tzinfo=timezone)
+        except ValueError:
+            return value
+        return _format_datetime(parsed, use_z=False)
+
+    return value
+
+
+def _parse_datetime(value: str) -> datetime:
+    normalized = value.replace("Z", "+00:00")
+    return datetime.fromisoformat(normalized)
+
+
+def _format_datetime(value: datetime, *, use_z: bool) -> str:
+    timespec = "milliseconds" if value.microsecond else "seconds"
+    formatted = value.isoformat(timespec=timespec)
+    if use_z and formatted.endswith("+00:00"):
+        return f"{formatted[:-6]}Z"
+    return formatted
 
 
 def _choice_prompt_options(item: dict) -> list[dict]:

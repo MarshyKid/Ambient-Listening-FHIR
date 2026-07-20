@@ -217,7 +217,6 @@ Configure:
 |---|---|
 | Allowed Callback URLs | `http://localhost:8000/api/auth/callback` |
 | Allowed Logout URLs | `http://localhost:5173` |
-| Allowed Web Origins | `http://localhost:5173` |
 
 The current backend callback redirects to `http://localhost:5173/`, so the frontend should run on port `5173` unless the callback code is updated.
 
@@ -400,8 +399,6 @@ LLM_RECONCILIATION_SEMANTIC_COMPARE_ENABLED=false
 ```
 
 Restart the backend after changing environment variables.
-
-Never commit the API key.
 
 ## 11. Verify the Complete Flow
 

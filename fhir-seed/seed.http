@@ -22,3 +22,15 @@ Content-Type: application/fhir+json
 Accept: */*
 
 < ./questionnaires/questionnaire-bundle.json
+
+### Check nurse practitioner
+GET {{fhirBaseUrl}}/Practitioner?identifier=nurse-1
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+### check questionnaires
+GET {{fhirBaseUrl}}/Questionnaire
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*

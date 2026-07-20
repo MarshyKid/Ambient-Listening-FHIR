@@ -9,9 +9,9 @@
   "name": [
     {
       "use": "official",
-      "given": ["Nora"],
+      "given": ["Demo"],
       "family": "Nurse",
-      "text": "Nora Nurse"
+      "text": "Demo Nurse"
     }
   ],
   "active": true

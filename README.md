@@ -8,7 +8,7 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 
 ## Demo Video
 
-> Replace with demo video.
+[![Watch demo video](https://youtu.be/I0hH32RTxXQ)](https://youtu.be/I0hH32RTxXQ)
 
 ## Main Features
 

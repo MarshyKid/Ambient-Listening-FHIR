@@ -8,7 +8,7 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 
 ## Demo Video
 
-[![Watch demo video](https://youtu.be/I0hH32RTxXQ)](https://youtu.be/I0hH32RTxXQ)
+[![Watch demo video](https://img.youtube.com/vi/I0hH32RTxXQ/hqdefault.jpg)](https://youtu.be/I0hH32RTxXQ)
 
 ## Main Features
 
@@ -51,7 +51,7 @@ Install:
 
 - Git
 - Docker Desktop
-- Python 3.11 or later
+- Python 3.11
 - [uv](https://docs.astral.sh/uv/) for Python dependency management
 - Node.js and npm
 - Visual Studio Code

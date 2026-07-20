@@ -1,0 +1,51 @@
+
+
+services:
+  irisfhir:
+    build: .
+    container_name: irisfhir
+    hostname: fhir-validator.local  # <-- Add this line
+    restart: unless-stopped
+    ports:
+      - "1972:1972"
+      - "52773:52773"
+      - "7038:7038"
+    volumes:
+      - ./data:/data
+    environment:
+      ISC_DATA_DIRECTORY: /data/ifconfig
+      ISC_CPF_MERGE_FILE: /merge/CMF.cpf
+    entrypoint: ["/iris-main"]
+    networks:
+      fhir-net:  # <-- Use custom network
+        aliases:
+          - fhir-validator.local  # optional: for other containers
+        ipv4_address: 172.1.1.40
+  webserver:
+    hostname: webserver
+    build:
+      context: ./webgateway
+      dockerfile: Dockerfile
+    container_name: webserver
+    init: true
+    depends_on:
+      - irisfhir
+    networks:
+      fhir-net:
+       ipv4_address: 172.1.1.41
+        
+    ports:
+    - "8080:80"
+    - "8443:443"
+    
+    
+    environment:
+        - IRIS_HOST=172.1.1.40
+        - IRIS_PORT=1972
+        - "IRIS_WEBAPPS=/csp /csp/sys /api"
+networks:
+  fhir-net:
+    driver: bridge
+    ipam:
+      config:
+       - subnet: 172.1.1.0/24

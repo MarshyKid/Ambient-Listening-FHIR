@@ -10,21 +10,6 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 
 > Replace with demo video.
 
-[Watch the demo video](PASTE_DEMO_VIDEO_URL_HERE)
-
-Suggested demo flow:
-
-1. Start the IRIS FHIR Docker environment.
-2. Start the FastAPI backend and React frontend.
-3. Sign in through Auth0.
-4. Select a patient.
-5. Review the patient summary and recommended Questionnaires.
-6. Select a Questionnaire and provide or load a sample transcript.
-7. Run extraction and review the generated answers.
-8. Run reconciliation against existing allergy and medication records.
-9. Review the proposed FHIR resources.
-10. Save the reviewed intake to IRIS as a FHIR transaction.
-
 ## Main Features
 
 - Auth0-based OAuth login.

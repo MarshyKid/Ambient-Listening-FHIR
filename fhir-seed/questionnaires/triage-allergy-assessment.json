@@ -1,0 +1,61 @@
+{
+  "resourceType": "Questionnaire",
+  "status": "active",
+  "title": "Triage Allergy Assessment",
+  "subjectType": ["Patient"],
+  "item": [
+    {
+      "linkId": "1",
+      "text": "Does the patient have any known allergies or drug adverse reactions?",
+      "type": "boolean",
+      "required": true
+    },
+    {
+      "linkId": "2",
+      "text": "Allergy Details",
+      "type": "group",
+      "enableWhen": [
+        {
+          "question": "1",
+          "operator": "=",
+          "answerBoolean": true
+        }
+      ],
+      "repeats": true,
+      "item": [
+        {
+          "linkId": "2.1",
+          "text": "Allergen Substance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "linkId": "2.2",
+          "text": "Allergy Type",
+          "type": "choice",
+          "answerOption": [
+            { "valueString": "Medication" },
+            { "valueString": "Food" },
+            { "valueString": "Environment" },
+            { "valueString": "Other" }
+          ]
+        },
+        {
+          "linkId": "2.3",
+          "text": "Reaction Symptoms",
+          "type": "string"
+        },
+        {
+          "linkId": "2.4",
+          "text": "Severity",
+          "type": "choice",
+          "answerOption": [
+            { "valueString": "Mild" },
+            { "valueString": "Moderate" },
+            { "valueString": "Severe / Anaphylactic" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "resourceType": "Questionnaire",
+  "status": "active",
+  "title": "Triage Social and Psychological Risk Screening",
+  "subjectType": ["Patient"],
+  "item": [
+    { "linkId": "5.1", "text": "Do you feel safe at home?", "type": "boolean", "required": true },
+    { "linkId": "5.2", "text": "Have you had thoughts of hurting yourself or others recently?", "type": "boolean", "required": true }
+  ]
+}

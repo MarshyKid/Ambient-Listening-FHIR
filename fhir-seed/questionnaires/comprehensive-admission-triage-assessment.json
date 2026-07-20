@@ -1,0 +1,195 @@
+{
+  "resourceType": "Questionnaire",
+  "status": "active",
+  "title": "Comprehensive Admission Triage Assessment",
+  "subjectType": [
+    "Patient"
+  ],
+  "item": [
+    {
+      "linkId": "1",
+      "text": "Does the patient have any known allergies or drug adverse reactions?",
+      "type": "boolean",
+      "required": true
+    },
+    {
+      "linkId": "2",
+      "text": "Allergy Details",
+      "type": "group",
+      "enableWhen": [
+        {
+          "question": "1",
+          "operator": "=",
+          "answerBoolean": true
+        }
+      ],
+      "repeats": true,
+      "item": [
+        {
+          "linkId": "2.1",
+          "text": "Allergen Substance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "linkId": "2.2",
+          "text": "Allergy Type",
+          "type": "choice",
+          "answerOption": [
+            { "valueString": "Medication" },
+            { "valueString": "Food" },
+            { "valueString": "Environment" },
+            { "valueString": "Other" }
+          ]
+        },
+        {
+          "linkId": "2.3",
+          "text": "Reaction Symptoms",
+          "type": "string"
+        },
+        {
+          "linkId": "2.4",
+          "text": "Severity",
+          "type": "choice",
+          "answerOption": [
+            { "valueString": "Mild" },
+            { "valueString": "Moderate" },
+            { "valueString": "Severe / Anaphylactic" }
+          ]
+        }
+      ]
+    },
+    {
+      "linkId": "3",
+      "text": "Chief Complaint & History of Present Illness",
+      "type": "group",
+      "required": true,
+      "item": [
+        {
+          "linkId": "3.1",
+          "text": "What is the primary reason for your hospital visit today?",
+          "type": "string",
+          "required": true
+        },
+        {
+          "linkId": "3.2",
+          "text": "When did this primary symptom start?",
+          "type": "dateTime",
+          "required": true
+        },
+        {
+          "linkId": "3.3",
+          "text": "Rate your current pain level from 0 (none) to 10 (worst possible)",
+          "type": "integer",
+          "required": true
+        }
+      ]
+    },
+    {
+      "linkId": "4",
+      "text": "Infection Control & Screening",
+      "type": "group",
+      "item": [
+        {
+          "linkId": "4.1",
+          "text": "Have you had a fever or chills in the last 48 hours?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "4.2",
+          "text": "Do you have a new cough, shortness of breath, or sore throat?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "4.3",
+          "text": "Have you traveled outside the country in the past 14 days?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "4.4",
+          "text": "Have you been in close contact with anyone diagnosed with a contagious illness?",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "linkId": "5",
+      "text": "Immediate Fall & Safety Risks",
+      "type": "group",
+      "item": [
+        {
+          "linkId": "5.1",
+          "text": "Have you fallen in the past 3 months?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "5.2",
+          "text": "Do you require an assistive device (walker, cane, wheelchair) to walk?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "5.3",
+          "text": "Is the patient confused, disoriented, or lethargic?",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "linkId": "6",
+      "text": "Critical Medical History & Baseline Medications",
+      "type": "group",
+      "item": [
+        {
+          "linkId": "6.1",
+          "text": "Do you have a history of any of the following high-risk conditions?",
+          "type": "choice",
+          "repeats": true,
+          "answerOption": [
+            { "valueString": "Diabetes" },
+            { "valueString": "Hypertension" },
+            { "valueString": "Heart Disease" },
+            { "valueString": "Stroke" },
+            { "valueString": "None" }
+          ]
+        },
+        {
+          "linkId": "6.2",
+          "text": "Are you currently taking any blood thinners (e.g., Aspirin, Warfarin, Eliquis)?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "6.3",
+          "text": "If applicable, is there any chance you are currently pregnant?",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "linkId": "7",
+      "text": "Social & Psychological Risks",
+      "type": "group",
+      "item": [
+        {
+          "linkId": "7.1",
+          "text": "Do you feel safe at home?",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "linkId": "7.2",
+          "text": "Have you had thoughts of hurting yourself or others recently?",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

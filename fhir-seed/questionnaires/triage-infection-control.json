@@ -1,0 +1,12 @@
+{
+  "resourceType": "Questionnaire",
+  "status": "active",
+  "title": "Triage Infection Control Screening",
+  "subjectType": ["Patient"],
+  "item": [
+    { "linkId": "2.1", "text": "Have you had a fever or chills in the last 48 hours?", "type": "boolean", "required": true },
+    { "linkId": "2.2", "text": "Do you have a new cough, shortness of breath, or sore throat?", "type": "boolean", "required": true },
+    { "linkId": "2.3", "text": "Have you traveled outside the country in the past 14 days?", "type": "boolean", "required": true },
+    { "linkId": "2.4", "text": "Have you been in close contact with anyone diagnosed with a contagious illness?", "type": "boolean", "required": true }
+  ]
+}

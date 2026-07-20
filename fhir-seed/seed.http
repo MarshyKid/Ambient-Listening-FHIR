@@ -1,0 +1,24 @@
+@fhirBaseUrl = http://localhost:8080/csp/healthshare/demo/fhir/r4
+@auth = Basic _SYSTEM ISCDEMO
+
+### metadata
+GET {{fhirBaseUrl}}/metadata
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+### post practitioner nurse
+POST {{fhirBaseUrl}}/Practitioner
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./practitioners/nurse-1.json
+
+### post questionnaires (transaction bundle)
+POST {{fhirBaseUrl}}
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./questionnaires/questionnaire-bundle.json

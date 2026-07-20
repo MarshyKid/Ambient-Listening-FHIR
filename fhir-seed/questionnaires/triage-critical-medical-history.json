@@ -1,0 +1,23 @@
+{
+  "resourceType": "Questionnaire",
+  "status": "active",
+  "title": "Triage Critical Medical History Assessment",
+  "subjectType": ["Patient"],
+  "item": [
+    {
+      "linkId": "4.1",
+      "text": "Do you have a history of any of the following high-risk conditions?",
+      "type": "choice",
+      "repeats": true,
+      "answerOption": [
+        { "valueString": "Diabetes" },
+        { "valueString": "Hypertension" },
+        { "valueString": "Heart Disease" },
+        { "valueString": "Stroke" },
+        { "valueString": "None" }
+      ]
+    },
+    { "linkId": "4.2", "text": "Are you currently taking any blood thinners (e.g., Aspirin, Warfarin, Eliquis)?", "type": "boolean", "required": true },
+    { "linkId": "4.3", "text": "If applicable, is there any chance you are currently pregnant?", "type": "boolean" }
+  ]
+}

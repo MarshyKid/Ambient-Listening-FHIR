@@ -24,6 +24,9 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 - Transactional creation of reviewed FHIR resources in IRIS.
 
 ## Architecture
+<img width="1009" height="978" alt="Ambient FHIR C4 Model (level 2) drawio" src="https://github.com/user-attachments/assets/f7d08105-daa4-40ae-9f89-4152e33aaf14" />
+<img width="1392" height="1092" alt="ambient-fhir-updated-architecture-flow drawio" src="https://github.com/user-attachments/assets/64069638-7e53-4c7e-b8bd-b380b770f542" />
+<img width="1036" height="1041" alt="Ambient FHIR C4 Model L3 (Reconciliation Workflow) drawio (4)" src="https://github.com/user-attachments/assets/ad9f3a36-4554-47c3-ba1c-1f500df1c093" />
 
 The frontend communicates with the FastAPI backend. The backend is responsible for authentication, FHIR access, AI calls, validation, reconciliation, and FHIR writes.
 

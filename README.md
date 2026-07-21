@@ -251,10 +251,13 @@ cd backend
 
 Copy the example environment file:
 
-### Windows PowerShell
+### Windows PowerShell / Cmd Prompt
 
 ```powershell
 Copy-Item .env.example .env
+```
+```Command Prompt
+copy .env.example .env
 ```
 
 ### macOS or Linux
@@ -353,10 +356,13 @@ cd frontend
 
 Copy the frontend environment file:
 
-### Windows PowerShell
+### Windows PowerShell / Cmd Prompt
 
 ```powershell
 Copy-Item .env.example .env
+```
+```Command Prompt
+copy .env.example .env
 ```
 
 ### macOS or Linux

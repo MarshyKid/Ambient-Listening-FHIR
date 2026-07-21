@@ -187,7 +187,7 @@ GET http://localhost:8080/csp/healthshare/demo/fhir/r4/Questionnaire
 
 ### 6.1 Create an Auth0 Application
 
-Use a **Regular Web Application** for the FastAPI server-side OAuth flow.
+Go to Applications->Applications to create a new application. Use a **Regular Web Application** for the FastAPI server-side OAuth flow.
 
 Configure:
 
@@ -200,7 +200,7 @@ The current backend callback redirects to `http://localhost:5173/`, so the front
 
 ### 6.2 Create an Auth0 API
 
-Create an API in Auth0 with an identifier matching the backend's FHIR audience exactly:
+Create an API (Applications -> API) in Auth0 with an identifier matching the backend's FHIR audience exactly:
 
 ```text
 https://localhost:8443/csp/healthshare/demo/fhir/r4
@@ -211,9 +211,19 @@ The identifier must match `FHIR_BASE_URL`.
 Add in the relevant permissions under the permissions tab. For this demo, just add `user/*.*` for all fhir resources read & write access.
 Grant the permission to the Auth0 Application just created.
 
-### 6.3 Configure IRIS to Trust Auth0 Tokens
+### 6.3 Create Auth0 User
+Go to User Management->Users and create a new user
 
-Configure the IRIS FHIR server to accept JWT access tokens issued by the Auth0 tenant.
+### 6.4 Configure IRIS to Trust Auth0 Tokens
+
+Configure the IRIS FHIR server using the built in `OAuth FHIR Client Quickstart`:
+| Step | Description |
+|---|---|
+| 1. Create or Choose FHIR Server | Use an Existing FHIR Server |
+| 2. Select FHIR Server | Namespace: DEMO, URL: /csp/healthshare/demo/fhir/r4 |
+| 3. Select OAuth Server Type | Select External OAuth Server |
+| 4. Configure OAuth Server | Issuer Endpoint: https://<your Auth0 domain> |
+| 5. Confirm Actions | Click Confirm |
 
 The configuration must align on:
 

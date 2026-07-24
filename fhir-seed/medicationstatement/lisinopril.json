@@ -1,0 +1,42 @@
+{
+    "resourceType": "MedicationStatement",
+    "status": "active",
+    "medicationCodeableConcept": {
+      "text": "Lisinopril 10 mg oral tablet"
+    },
+    "subject": {
+      "reference": "Patient/DEMO00000001"
+    },
+    "effectivePeriod": {
+      "start": "2024-02-10"
+    },
+    "dateAsserted": "2026-07-24",
+    "reasonCode": [
+      {
+        "text": "Hypertension"
+      }
+    ],
+    "dosage": [
+      {
+        "text": "Take one 10 mg tablet by mouth once daily.",
+        "route": {
+          "text": "Oral"
+        },
+        "doseAndRate": [
+          {
+            "doseQuantity": {
+              "value": 10,
+              "unit": "mg",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg"
+            }
+          }
+        ]
+      }
+    ],
+    "note": [
+      {
+        "text": "Patient usually takes this medication in the morning."
+      }
+    ]
+  }

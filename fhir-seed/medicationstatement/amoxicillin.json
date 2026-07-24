@@ -1,0 +1,48 @@
+{
+    "resourceType": "MedicationStatement",
+    "status": "stopped",
+    "statusReason": [
+      {
+        "text": "Stopped after the patient developed hives and a widespread red rash."
+      }
+    ],
+    "medicationCodeableConcept": {
+      "text": "Amoxicillin 500 mg oral capsule"
+    },
+    "subject": {
+      "reference": "Patient/DEMO00000001"
+    },
+    "effectivePeriod": {
+      "start": "2019-08-10",
+      "end": "2019-08-14"
+    },
+    "dateAsserted": "2019-08-15",
+    "reasonCode": [
+      {
+        "text": "Suspected bacterial respiratory infection"
+      }
+    ],
+    "dosage": [
+      {
+        "text": "Previously instructed to take one 500 mg capsule by mouth three times daily.",
+        "route": {
+          "text": "Oral"
+        },
+        "doseAndRate": [
+          {
+            "doseQuantity": {
+              "value": 500,
+              "unit": "mg",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg"
+            }
+          }
+        ]
+      }
+    ],
+    "note": [
+      {
+        "text": "Medication was discontinued on day five after the patient developed hives and a red rash. Penicillin allergy was subsequently recorded."
+      }
+    ]
+  }

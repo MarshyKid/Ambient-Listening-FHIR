@@ -1,0 +1,57 @@
+{
+    "resourceType": "AllergyIntolerance",
+    "clinicalStatus": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+          "code": "active",
+          "display": "Active"
+        }
+      ]
+    },
+    "verificationStatus": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+          "code": "confirmed",
+          "display": "Confirmed"
+        }
+      ]
+    },
+    "type": "allergy",
+    "category": [
+      "food"
+    ],
+    "criticality": "high",
+    "code": {
+      "text": "Shellfish"
+    },
+    "patient": {
+      "reference": "Patient/DEMO00000001"
+    },
+    "onsetDateTime": "2021-03-07",
+    "recordedDate": "2021-03-08",
+    "reaction": [
+      {
+        "substance": {
+          "text": "Prawns and other crustacean shellfish"
+        },
+        "manifestation": [
+          {
+            "text": "Lip swelling"
+          },
+          {
+            "text": "Shortness of breath"
+          }
+        ],
+        "description": "The patient experienced lip swelling and difficulty breathing shortly after eating prawns.",
+        "onset": "2021-03-07T20:15:00+08:00",
+        "severity": "severe"
+      }
+    ],
+    "note": [
+      {
+        "text": "Patient has been advised to avoid prawns, crab and lobster."
+      }
+    ]
+  }

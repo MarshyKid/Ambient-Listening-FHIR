@@ -34,3 +34,59 @@ GET {{fhirBaseUrl}}/Questionnaire
 Authorization: {{auth}}
 Content-Type: application/fhir+json
 Accept: */*
+
+### Add patient
+PUT {{fhirBaseUrl}}/Patient/DEMO00000001
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./patients/demo-patient.json
+
+### add penicillin
+POST {{fhirBaseUrl}}/AllergyIntolerance
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./allergyintolerance/penicillin.json
+
+### add shellfish
+POST {{fhirBaseUrl}}/AllergyIntolerance
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./allergyintolerance/shellfish.json
+
+### add latex
+POST {{fhirBaseUrl}}/AllergyIntolerance
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./allergyintolerance/latex.json
+
+### add amoxicillin
+POST {{fhirBaseUrl}}/MedicationStatement
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./medicationstatement/amoxicillin.json
+
+### add lisinopril
+POST {{fhirBaseUrl}}/MedicationStatement
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./medicationstatement/lisinopril.json
+
+### add metformin
+POST {{fhirBaseUrl}}/MedicationStatement
+Authorization: {{auth}}
+Content-Type: application/fhir+json
+Accept: */*
+
+< ./medicationstatement/metformin.json

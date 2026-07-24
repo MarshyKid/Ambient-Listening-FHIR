@@ -1,0 +1,57 @@
+{
+    "resourceType": "AllergyIntolerance",
+    "clinicalStatus": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+          "code": "active",
+          "display": "Active"
+        }
+      ]
+    },
+    "verificationStatus": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+          "code": "confirmed",
+          "display": "Confirmed"
+        }
+      ]
+    },
+    "type": "allergy",
+    "category": [
+      "medication"
+    ],
+    "criticality": "high",
+    "code": {
+      "text": "Penicillin and related beta-lactam antibiotics"
+    },
+    "patient": {
+      "reference": "Patient/DEMO00000001"
+    },
+    "onsetDateTime": "2019-08-14",
+    "recordedDate": "2019-08-15",
+    "reaction": [
+      {
+        "substance": {
+          "text": "Penicillin"
+        },
+        "manifestation": [
+          {
+            "text": "Hives"
+          },
+          {
+            "text": "Red rash on chest and arms"
+          }
+        ],
+        "description": "The patient developed widespread hives and a red, itchy rash after taking amoxicillin.",
+        "onset": "2019-08-14T14:30:00+08:00",
+        "severity": "moderate"
+      }
+    ],
+    "note": [
+      {
+        "text": "Avoid penicillin and related antibiotics unless reviewed by an allergy specialist."
+      }
+    ]
+  }

@@ -1,0 +1,42 @@
+{
+    "resourceType": "MedicationStatement",
+    "status": "active",
+    "medicationCodeableConcept": {
+      "text": "Metformin 500 mg oral tablet"
+    },
+    "subject": {
+      "reference": "Patient/DEMO00000001"
+    },
+    "effectivePeriod": {
+      "start": "2023-09-01"
+    },
+    "dateAsserted": "2026-07-24",
+    "reasonCode": [
+      {
+        "text": "Type 2 diabetes mellitus"
+      }
+    ],
+    "dosage": [
+      {
+        "text": "Take one 500 mg tablet by mouth twice daily with meals.",
+        "route": {
+          "text": "Oral"
+        },
+        "doseAndRate": [
+          {
+            "doseQuantity": {
+              "value": 500,
+              "unit": "mg",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg"
+            }
+          }
+        ]
+      }
+    ],
+    "note": [
+      {
+        "text": "Patient reports taking the morning and evening doses consistently."
+      }
+    ]
+  }

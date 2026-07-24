@@ -1,0 +1,63 @@
+{
+    "resourceType": "Patient",
+    "active": true,
+    "id": "DEMO00000001",
+    "identifier": [
+      {
+        "use": "usual",
+        "system": "http://example.org/fhir/mrn",
+        "value": "MRN-DEMO-001"
+      }
+    ],
+    "name": [
+      {
+        "use": "official",
+        "family": "Tan",
+        "given": [
+          "Alicia",
+          "Mei"
+        ]
+      }
+    ],
+    "telecom": [
+      {
+        "system": "phone",
+        "value": "+65 8123 4567",
+        "use": "mobile"
+      },
+      {
+        "system": "email",
+        "value": "alicia.tan@example.com",
+        "use": "home"
+      }
+    ],
+    "gender": "female",
+    "birthDate": "1987-06-14",
+    "address": [
+      {
+        "use": "home",
+        "type": "physical",
+        "line": [
+          "10 Example Street"
+        ],
+        "city": "Singapore",
+        "postalCode": "529999",
+        "country": "SG"
+      }
+    ],
+    "communication": [
+      {
+        "language": {
+          "coding": [
+            {
+              "system": "urn:ietf:bcp:47",
+              "code": "en",
+              "display": "English"
+            }
+          ],
+          "text": "English"
+        },
+        "preferred": true
+      }
+    ]
+  }

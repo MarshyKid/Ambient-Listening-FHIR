@@ -367,6 +367,21 @@ export interface ReconciliationActivity {
   message: string;
 }
 
+export interface ReconciliationVectorSearchEvidence {
+  resourceType: string;
+  resourceId: string;
+  versionId?: string | null;
+  searchText: string;
+  similarity?: number | null;
+}
+
+export interface ReconciliationVectorSearchSummary {
+  status: "completed" | "skipped" | "failed";
+  message: string;
+  resultCount: number;
+  evidence: ReconciliationVectorSearchEvidence[];
+}
+
 export interface CheckedRecordSummary {
   domainsChecked: ReconciliationDomain[];
   allergyIntoleranceCount: number;
@@ -378,6 +393,7 @@ export interface ReconcileResponse {
   findings: ReconciliationFinding[];
   activityTrail: ReconciliationActivity[];
   checkedRecordSummary: CheckedRecordSummary;
+  vectorSearch?: ReconciliationVectorSearchSummary | null;
 }
 
 export interface SavePayload {

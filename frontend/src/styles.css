@@ -3282,6 +3282,97 @@ textarea {
   font-size: 12px;
 }
 
+.vector-evidence {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+}
+
+.vector-evidence.failed {
+  border-color: #e6bbb4;
+}
+
+.vector-evidence summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vector-evidence-status {
+  color: var(--ink-3);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.vector-evidence.completed .vector-evidence-status {
+  color: var(--confirmed);
+}
+
+.vector-evidence.failed .vector-evidence-status {
+  color: var(--attention);
+}
+
+.vector-evidence-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.vector-evidence-body > p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.vector-evidence-note {
+  color: var(--ink-3);
+}
+
+.vector-evidence-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.vector-evidence-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.vector-evidence-row:last-child {
+  border-bottom: 0;
+}
+
+.vector-evidence-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.vector-evidence-meta code {
+  color: var(--ink);
+}
+
+.vector-evidence-row p,
+.vector-evidence-empty {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .filter-chip-row {
   display: flex;
   flex-wrap: wrap;

@@ -1,6 +1,7 @@
 from app.config import Settings
 from app.schemas.reconcile import ReconcileRequest, ReconcileResponse
 from app.services.fhir_client import FhirClient
+from app.services.iris_vector_search_client import IrisVectorSearchClient
 from app.services.record_snapshot_service import RecordSnapshotService
 from app.services.reconciliation_agent_service import ReconciliationAgentService
 from app.services.reconciliation_graph import ReconciliationGraph
@@ -18,7 +19,15 @@ class ReconciliationService:
             if settings.llm_reconciliation_semantic_compare_enabled
             else None
         )
-        self.graph = ReconciliationGraph(self.snapshot_service, self.agent, self.planner, self.semantic_comparator)
+        vector_search_url = getattr(settings, "iris_vector_search_url", None)
+        self.vector_search_client = IrisVectorSearchClient(settings) if vector_search_url else None
+        self.graph = ReconciliationGraph(
+            self.snapshot_service,
+            self.agent,
+            self.planner,
+            self.semantic_comparator,
+            self.vector_search_client,
+        )
 
     async def reconcile(self, request: ReconcileRequest) -> ReconcileResponse:
         return await self.graph.ainvoke(request)

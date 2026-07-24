@@ -8,6 +8,7 @@ from .common import ApiModel
 ReconciliationClassification = Literal["duplicate", "contradiction", "novel"]
 ReconciliationDomain = Literal["AllergyIntolerance", "MedicationStatement"]
 ReconciliationFindingSource = Literal["deterministic", "llm_semantic"]
+ReconciliationVectorSearchStatus = Literal["completed", "skipped", "failed"]
 
 
 class ReconcileAnswer(ApiModel):
@@ -61,8 +62,24 @@ class CheckedRecordSummary(ApiModel):
     medicationStatementCount: int = 0
 
 
+class ReconciliationVectorSearchEvidence(ApiModel):
+    resourceType: str
+    resourceId: str
+    versionId: str | None = None
+    searchText: str
+    similarity: float | None = None
+
+
+class ReconciliationVectorSearchSummary(ApiModel):
+    status: ReconciliationVectorSearchStatus
+    message: str
+    resultCount: int = 0
+    evidence: list[ReconciliationVectorSearchEvidence] = []
+
+
 class ReconcileResponse(ApiModel):
     patientId: str
     findings: list[ReconciliationFinding]
     activityTrail: list[ReconciliationActivity]
     checkedRecordSummary: CheckedRecordSummary
+    vectorSearch: ReconciliationVectorSearchSummary | None = None

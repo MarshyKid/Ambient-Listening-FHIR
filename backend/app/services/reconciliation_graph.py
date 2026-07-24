@@ -1,3 +1,5 @@
+import json
+import logging
 import re
 from typing import TypedDict
 
@@ -11,8 +13,12 @@ from app.schemas.reconcile import (
     ReconciliationActivity,
     ReconciliationDomain,
     ReconciliationFinding,
+    ReconciliationVectorSearchEvidence,
+    ReconciliationVectorSearchStatus,
+    ReconciliationVectorSearchSummary,
 )
 from app.services.fhir_client import FhirClientError, FhirHttpError
+from app.services.iris_vector_search_client import IrisVectorSearchClient, IrisVectorSearchError, VectorSearchResult
 from app.services.record_fact_mapper import AllergyFact, MedicationFact, allergy_fact, medication_fact
 from app.services.record_snapshot_service import RecordSnapshotService
 from app.services.reconciliation_agent_service import ReconciliationAgentService, relevant_domains
@@ -21,6 +27,7 @@ from app.services.reconciliation_semantic_comparator_service import Reconciliati
 
 
 ALLOWED_DOMAINS: set[ReconciliationDomain] = {"AllergyIntolerance", "MedicationStatement"}
+logger = logging.getLogger(__name__)
 
 
 class ReconciliationGraphState(TypedDict, total=False):
@@ -33,6 +40,10 @@ class ReconciliationGraphState(TypedDict, total=False):
     medicationStatements: list[dict]
     allergyFacts: list[AllergyFact]
     medicationFacts: list[MedicationFact]
+    vector_search_results: list[VectorSearchResult]
+    vector_search_error: str | None
+    vector_search_status: ReconciliationVectorSearchStatus
+    vector_search_message: str
     fetchedResourceRefs: set[str]
     findings: list[ReconciliationFinding]
     activityTrail: list[ReconciliationActivity]
@@ -46,11 +57,13 @@ class ReconciliationGraph:
         agent: ReconciliationAgentService,
         planner: ReconciliationPlannerService | None = None,
         semantic_comparator: ReconciliationSemanticComparatorService | None = None,
+        vector_search_client: IrisVectorSearchClient | None = None,
     ) -> None:
         self.snapshot_service = snapshot_service
         self.agent = agent
         self.planner = planner
         self.semantic_comparator = semantic_comparator
+        self.vector_search_client = vector_search_client
         self.graph = self._build_graph()
 
     async def ainvoke(self, request: ReconcileRequest) -> ReconcileResponse:
@@ -67,6 +80,7 @@ class ReconciliationGraph:
         workflow.add_node("validate_domains", self.validate_domains)
         workflow.add_node("load_patient", self.load_patient)
         workflow.add_node("fetch_record_context", self.fetch_record_context)
+        workflow.add_node("search_vector_context", self.search_vector_context)
         workflow.add_node("map_record_facts", self.map_record_facts)
         workflow.add_node("compare_draft_to_record", self.compare_draft_to_record)
         workflow.add_node("llm_semantic_compare", self.llm_semantic_compare)
@@ -78,7 +92,8 @@ class ReconciliationGraph:
         workflow.add_edge("select_domains", "validate_domains")
         workflow.add_edge("validate_domains", "load_patient")
         workflow.add_edge("load_patient", "fetch_record_context")
-        workflow.add_edge("fetch_record_context", "map_record_facts")
+        workflow.add_edge("fetch_record_context", "search_vector_context")
+        workflow.add_edge("search_vector_context", "map_record_facts")
         workflow.add_edge("map_record_facts", "compare_draft_to_record")
         workflow.add_edge("compare_draft_to_record", "llm_semantic_compare")
         workflow.add_edge("llm_semantic_compare", "validate_findings")
@@ -100,6 +115,10 @@ class ReconciliationGraph:
             "medicationStatements": [],
             "allergyFacts": [],
             "medicationFacts": [],
+            "vector_search_results": [],
+            "vector_search_error": None,
+            "vector_search_status": "skipped",
+            "vector_search_message": "IRIS vector search was not run.",
             "fetchedResourceRefs": set(),
             "findings": [],
         }
@@ -229,6 +248,71 @@ class ReconciliationGraph:
             "activityTrail": activity,
         }
 
+    async def search_vector_context(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
+        client = self.vector_search_client
+        if not self.semantic_comparator:
+            return _vector_search_outcome(
+                state,
+                status="skipped",
+                message="IRIS vector search skipped because semantic comparison is disabled.",
+            )
+        if not client or not client.url:
+            return _vector_search_outcome(
+                state,
+                status="skipped",
+                message="IRIS vector search skipped because the endpoint is not configured.",
+            )
+
+        patient_reference = f"Patient/{state['normalizedPatientId']}"
+        if getattr(client, "has_partial_auth", False):
+            error = "IRIS vector search Basic Auth configuration is incomplete."
+            logger.warning("IRIS vector search skipped for %s: %s", patient_reference, error)
+            return _vector_search_outcome(
+                state,
+                status="skipped",
+                message="IRIS vector search skipped because its authentication configuration is incomplete.",
+                error=error,
+            )
+
+        try:
+            query = build_vector_search_query(state["request"])
+            if not query:
+                return _vector_search_outcome(
+                    state,
+                    status="skipped",
+                    message="IRIS vector search skipped because the draft has no searchable clinical text.",
+                )
+            response = await client.search(
+                patient_reference=patient_reference,
+                query=query,
+            )
+        except Exception as exc:
+            if isinstance(exc, IrisVectorSearchError):
+                error = str(exc)
+            else:
+                error = f"Unexpected vector search error: {type(exc).__name__}."
+            logger.warning(
+                "IRIS vector search failed for %s with topK=%d: %s",
+                patient_reference,
+                client.top_k,
+                error,
+            )
+            return _vector_search_outcome(
+                state,
+                status="failed",
+                message="IRIS vector search was unavailable; reconciliation continued with FHIR-server data only.",
+                error=error,
+            )
+
+        result_count = len(response.results)
+        label = "match" if result_count == 1 else "matches"
+        return _vector_search_outcome(
+            state,
+            status="completed",
+            message=f"IRIS vector search returned {result_count} supporting evidence {label}.",
+            results=response.results,
+        )
+
     async def map_record_facts(self, state: ReconciliationGraphState) -> ReconciliationGraphState:
         allergy_facts = [fact for resource in state.get("allergies", []) if (fact := allergy_fact(resource))]
         medication_facts = [fact for resource in state.get("medicationStatements", []) if (fact := medication_fact(resource))]
@@ -274,6 +358,7 @@ class ReconciliationGraph:
                 allergy_facts=state.get("allergyFacts", []),
                 medication_facts=state.get("medicationFacts", []),
                 existing_findings=deterministic_findings,
+                vector_search_results=state.get("vector_search_results", []),
             )
         except Exception:
             activity.append(
@@ -321,8 +406,107 @@ class ReconciliationGraph:
                 allergyIntoleranceCount=len(state.get("allergies", [])),
                 medicationStatementCount=len(state.get("medicationStatements", [])),
             ),
+            vectorSearch=ReconciliationVectorSearchSummary(
+                status=state.get("vector_search_status", "skipped"),
+                message=state.get("vector_search_message", "IRIS vector search was not run."),
+                resultCount=len(state.get("vector_search_results", [])),
+                evidence=[
+                    ReconciliationVectorSearchEvidence(
+                        resourceType=result.resourceType,
+                        resourceId=result.resourceId,
+                        versionId=result.versionId,
+                        searchText=result.searchText,
+                        similarity=result.similarity,
+                    )
+                    for result in state.get("vector_search_results", [])
+                ],
+            ),
         )
         return {**state, "response": response}
+
+
+def _vector_search_outcome(
+    state: ReconciliationGraphState,
+    *,
+    status: ReconciliationVectorSearchStatus,
+    message: str,
+    results: list[VectorSearchResult] | None = None,
+    error: str | None = None,
+) -> ReconciliationGraphState:
+    return {
+        **state,
+        "vector_search_results": results or [],
+        "vector_search_error": error,
+        "vector_search_status": status,
+        "vector_search_message": message,
+        "activityTrail": [
+            *state.get("activityTrail", []),
+            ReconciliationActivity(
+                step="search-vector-context",
+                status=status,
+                message=message,
+            ),
+        ],
+    }
+
+
+def build_vector_search_query(request: ReconcileRequest) -> str:
+    sections: list[str] = []
+
+    for answer in request.answers:
+        value = _readable_query_value(answer.value)
+        evidence = (answer.evidence or "").strip()
+        if not value and not evidence:
+            continue
+
+        question = (answer.questionText or "").strip() or answer.linkId
+        lines = [f"Question: {question}"]
+        if value:
+            lines.append(f"Answer: {value}")
+        if evidence and evidence != value:
+            lines.append(f"Supporting text: {evidence}")
+        sections.append("\n".join(lines))
+
+    for suggestion in request.clinicalSuggestions:
+        fields = [
+            f"{key}: {value.strip()}"
+            for key, value in suggestion.fields.items()
+            if isinstance(value, str) and value.strip()
+        ]
+        evidence = (suggestion.evidence or "").strip()
+        if not fields and not evidence:
+            continue
+
+        heading = f"Proposed {suggestion.resourceType}"
+        lines = [f"{heading}: {'; '.join(fields)}" if fields else heading]
+        if evidence:
+            lines.append(f"Supporting text: {evidence}")
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)
+
+
+def _readable_query_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        for key in ("display", "value", "code"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+    if isinstance(value, list):
+        readable_items = [_readable_query_value(item) for item in value]
+        readable_items = [item for item in readable_items if item]
+        if readable_items:
+            return ", ".join(readable_items)
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    except (TypeError, ValueError):
+        return str(value)
 
 
 def normalize_patient_id(patient_id: str) -> str:

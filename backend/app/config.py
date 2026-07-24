@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     fhir_timeout_seconds: float = Field(default=10, alias="FHIR_TIMEOUT_SECONDS")
     enable_fhir_validate: bool = Field(default=False, alias="ENABLE_FHIR_VALIDATE")
 
+    iris_vector_search_url: str | None = Field(default=None, alias="IRIS_VECTOR_SEARCH_URL")
+    iris_vector_search_username: str | None = Field(default=None, alias="IRIS_VECTOR_SEARCH_USERNAME")
+    iris_vector_search_password: str | None = Field(default=None, alias="IRIS_VECTOR_SEARCH_PASSWORD")
+    iris_vector_search_top_k: int = Field(default=5, ge=1, alias="IRIS_VECTOR_SEARCH_TOP_K")
+    iris_vector_search_timeout_seconds: float = Field(default=5, gt=0, alias="IRIS_VECTOR_SEARCH_TIMEOUT_SECONDS")
+
     llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     llm_model: str = Field(default="gpt-5.5", alias="LLM_MODEL")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
@@ -38,6 +44,18 @@ class Settings(BaseSettings):
     @classmethod
     def strip_trailing_slash(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @field_validator("iris_vector_search_url", "iris_vector_search_username", mode="before")
+    @classmethod
+    def strip_optional_vector_setting(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return value.strip() or None
+
+    @field_validator("iris_vector_search_password", mode="before")
+    @classmethod
+    def normalize_optional_vector_password(cls, value: object) -> object:
+        return None if value == "" else value
 
     @field_validator("default_clinical_timezone")
     @classmethod

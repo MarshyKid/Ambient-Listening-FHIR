@@ -10,7 +10,8 @@ import type {
   QuestionnaireItem,
   ReconcileResponse,
   ReconciliationActivity,
-  ReconciliationFinding
+  ReconciliationFinding,
+  ReconciliationVectorSearchSummary
 } from "../types";
 import { buildQuestionnaireResponsePreview } from "../mock/mockApi";
 import { flattenAnswerableItems, hasAnswerValue, manualEntryEvidence } from "../utils/questionnaireItems";
@@ -285,6 +286,8 @@ function ConsistencyCheckBanner({
         </div>
       </details>
 
+      {result.vectorSearch && <VectorSearchEvidenceDetails summary={result.vectorSearch} />}
+
       {result.findings.length === 0 && <p className="consistency-empty">No duplicate, conflict, or new-record findings were flagged.</p>}
     </section>
   );
@@ -296,6 +299,46 @@ function ConsistencyActivityStep({ activity }: { activity: ReconciliationActivit
       <span aria-hidden="true">{activity.status === "completed" ? "✓" : activity.status === "failed" ? "!" : "·"}</span>
       <span>{activity.message}</span>
     </div>
+  );
+}
+
+function VectorSearchEvidenceDetails({ summary }: { summary: ReconciliationVectorSearchSummary }) {
+  const matchLabel = `${summary.resultCount} ${summary.resultCount === 1 ? "match" : "matches"}`;
+  const statusLabel = summary.status === "completed" ? matchLabel : summary.status;
+
+  return (
+    <details className={`vector-evidence ${summary.status}`}>
+      <summary>
+        <span>IRIS vector evidence</span>
+        <span className="vector-evidence-status">{statusLabel}</span>
+      </summary>
+      <div className="vector-evidence-body">
+        <p>{summary.message}</p>
+        {summary.status === "completed" && (
+          <>
+            {summary.evidence.length === 0 ? (
+              <p className="vector-evidence-empty">Search completed with no supporting matches.</p>
+            ) : (
+              <div className="vector-evidence-list">
+                {summary.evidence.map((evidence) => (
+                  <div
+                    className="vector-evidence-row"
+                    key={`${evidence.resourceType}/${evidence.resourceId}`}
+                  >
+                    <div className="vector-evidence-meta">
+                      <code>{evidence.resourceType}/{evidence.resourceId}</code>
+                      {evidence.versionId && <span>Version {evidence.versionId}</span>}
+                      {evidence.similarity != null && <span>Similarity {evidence.similarity.toFixed(3)}</span>}
+                    </div>
+                    <p>{evidence.searchText}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </details>
   );
 }
 

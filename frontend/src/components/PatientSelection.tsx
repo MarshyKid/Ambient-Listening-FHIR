@@ -4,7 +4,7 @@ import type { PatientQueryResult, PatientSummary } from "../types";
 import { queryPatientsFhir } from "../api/patients";
 import CreatePatientModal from "./CreatePatientModal";
 
-const defaultPatientRequestUrl = `${fhirBaseUrl}/Patient?_count=10`;
+const defaultPatientRequestUrl = `${fhirBaseUrl}/Patient?_lastUpdated=gt2026-07-01&_count=10`;
 
 interface PatientSelectionProps {
   selectedPatient: PatientSummary | null;

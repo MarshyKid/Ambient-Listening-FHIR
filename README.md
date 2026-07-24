@@ -8,7 +8,7 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 
 ## Demo Video
 
-> Replace with demo video.
+[![Watch demo video](https://img.youtube.com/vi/I0hH32RTxXQ/hqdefault.jpg)](https://youtu.be/I0hH32RTxXQ)
 
 ## Main Features
 
@@ -24,6 +24,9 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 - Transactional creation of reviewed FHIR resources in IRIS.
 
 ## Architecture
+<img width="1009" height="978" alt="Ambient FHIR C4 Model (level 2) drawio" src="https://github.com/user-attachments/assets/f7d08105-daa4-40ae-9f89-4152e33aaf14" />
+<img width="1392" height="1091" alt="C4 L3 Overview" src="https://github.com/user-attachments/assets/001fbac1-628e-44e0-9bff-082998821af9" />
+<img width="1036" height="1041" alt="Ambient FHIR C4 Model L3 (Reconciliation Workflow) drawio (4)" src="https://github.com/user-attachments/assets/ad9f3a36-4554-47c3-ba1c-1f500df1c093" />
 
 The frontend communicates with the FastAPI backend. The backend is responsible for authentication, FHIR access, AI calls, validation, reconciliation, and FHIR writes.
 
@@ -48,7 +51,7 @@ Install:
 
 - Git
 - Docker Desktop
-- Python 3.11 or later
+- Python 3.11
 - [uv](https://docs.astral.sh/uv/) for Python dependency management
 - Node.js and npm
 - Visual Studio Code
@@ -182,19 +185,9 @@ GET http://localhost:8080/csp/healthshare/demo/fhir/r4/Questionnaire
 
 ## 6. Configure Auth0
 
-### 6.1 Create an Auth0 API
+### 6.1 Create an Auth0 Application
 
-Create an API in Auth0 with an identifier matching the backend's FHIR audience exactly:
-
-```text
-https://localhost:8443/csp/healthshare/demo/fhir/r4
-```
-
-The identifier must match `FHIR_BASE_URL`.
-
-### 6.2 Create an Auth0 Application
-
-Use a **Regular Web Application** for the FastAPI server-side OAuth flow.
+Go to Applications->Applications to create a new application. Use a **Regular Web Application** for the FastAPI server-side OAuth flow.
 
 Configure:
 
@@ -205,9 +198,32 @@ Configure:
 
 The current backend callback redirects to `http://localhost:5173/`, so the frontend should run on port `5173` unless the callback code is updated.
 
-### 6.3 Configure IRIS to Trust Auth0 Tokens
+### 6.2 Create an Auth0 API
 
-Configure the IRIS FHIR server to accept JWT access tokens issued by the Auth0 tenant.
+Create an API (Applications -> API) in Auth0 with an identifier matching the backend's FHIR audience exactly:
+
+```text
+https://localhost:8443/csp/healthshare/demo/fhir/r4
+```
+
+The identifier must match `FHIR_BASE_URL`.
+
+Add in the relevant permissions under the permissions tab. For this demo, just add `user/*.*` for all fhir resources read & write access.
+Grant the permission to the Auth0 Application just created.
+
+### 6.3 Create Auth0 User
+Go to User Management->Users and create a new user
+
+### 6.4 Configure IRIS to Trust Auth0 Tokens
+
+Configure the IRIS FHIR server using the built in `OAuth FHIR Client Quickstart`:
+| Step | Description |
+|---|---|
+| 1. Create or Choose FHIR Server | Use an Existing FHIR Server |
+| 2. Select FHIR Server | Namespace: DEMO, URL: /csp/healthshare/demo/fhir/r4 |
+| 3. Select OAuth Server Type | Select External OAuth Server |
+| 4. Configure OAuth Server | Issuer Endpoint: https://<your Auth0 domain> |
+| 5. Confirm Actions | Click Confirm |
 
 The configuration must align on:
 
@@ -235,10 +251,13 @@ cd backend
 
 Copy the example environment file:
 
-### Windows PowerShell
+### Windows PowerShell / Cmd Prompt
 
 ```powershell
 Copy-Item .env.example .env
+```
+```Command Prompt
+copy .env.example .env
 ```
 
 ### macOS or Linux
@@ -260,7 +279,7 @@ FHIR_STAFF_SYSTEM=http://example.org/staff-id
 QUESTIONNAIRE_CANONICAL_BASE=http://example.org/fhir/Questionnaire
 DEFAULT_PRACTITIONER_IDENTIFIER=nurse-1
 FHIR_TIMEOUT_SECONDS=10
-ENABLE_FHIR_VALIDATE=false
+ENABLE_FHIR_VALIDATE=true
 
 # Frontend and backend URLs
 APP_BASE_URL=http://localhost:8000
@@ -274,7 +293,7 @@ AUTH0_CLIENT_SECRET=YOUR_AUTH0_CLIENT_SECRET
 AUTH0_SECRET=REPLACE_WITH_A_LONG_RANDOM_SECRET
 
 # AI
-LLM_PROVIDER=mock
+LLM_PROVIDER=openai
 LLM_MODEL=gpt-5.4-mini
 OPENAI_API_KEY=
 LLM_TIMEOUT_SECONDS=45
@@ -337,10 +356,13 @@ cd frontend
 
 Copy the frontend environment file:
 
-### Windows PowerShell
+### Windows PowerShell / Cmd Prompt
 
 ```powershell
 Copy-Item .env.example .env
+```
+```Command Prompt
+copy .env.example .env
 ```
 
 ### macOS or Linux

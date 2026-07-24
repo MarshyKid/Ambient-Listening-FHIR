@@ -20,6 +20,8 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 - Conversation-to-Questionnaire answer extraction.
 - Suggested clinical resource extraction.
 - Reconciliation against existing `AllergyIntolerance` and `MedicationStatement` records.
+- OpenAI-backed embedding generation for indexed FHIR resources in IRIS.
+- Optional patient-scoped IRIS vector retrieval as supporting reconciliation evidence, with FHIR-only fallback when vector search is unavailable.
 - Nurse review before any FHIR write.
 - Transactional creation of reviewed FHIR resources in IRIS.
 
@@ -30,6 +32,8 @@ The nurse remains in control throughout the workflow: AI-generated answers, clin
 
 The frontend communicates with the FastAPI backend. The backend is responsible for authentication, FHIR access, AI calls, validation, reconciliation, and FHIR writes.
 
+FHIR writes are also routed through an IRIS interoperability production that saves supported resources to the FHIR repository and creates searchable embeddings. During reconciliation, the backend can call a separate patient-scoped IRIS vector-search endpoint and include the returned top-K matches as supporting evidence. FHIR-server records remain authoritative, and reconciliation continues with FHIR data alone if vector retrieval fails.
+
 ## Repository Structure
 
 ```text
@@ -38,6 +42,7 @@ The frontend communicates with the FastAPI backend. The backend is responsible f
 ├── frontend/         React + Vite frontend
 ├── Dockerfhir/       Dockerized IRIS for Health FHIR environment
 ├── fhir-seed/        Development FHIR seed resources and REST requests
+├── src/              Exported IRIS ObjectScript classes and production definitions
 └── README.md
 ```
 
@@ -58,6 +63,7 @@ Install:
 - VS Code REST Client extension, for running `fhir-seed/seed.http`
 - An Auth0 tenant and application
 - An OpenAI API key only when AI features are enabled
+- An OpenAI API key for the IRIS embedding configuration when vector indexing and vector search are enabled
 
 Confirm the main tools are available:
 
@@ -101,6 +107,8 @@ Expected local endpoints:
 | FHIR R4 base URL over HTTP | `http://localhost:8080/csp/healthshare/demo/fhir/r4` |
 | FHIR R4 base URL over HTTPS | `https://localhost:8443/csp/healthshare/demo/fhir/r4` |
 | FHIR CapabilityStatement | `https://localhost:8443/csp/healthshare/demo/fhir/r4/metadata` |
+| IRIS vector-search ping | `http://localhost:8080/csp/demo/ambient-vector/ping` |
+| IRIS vector-search endpoint | `http://localhost:8080/csp/demo/ambient-vector/search` |
 
 Default development credentials provided by the Docker environment:
 
@@ -123,6 +131,334 @@ To stop the environment:
 ```bash
 docker compose down
 ```
+
+### 3.1 Create the Local IRIS Demo User (Skip 3.1 - 3.6 if not using Vector Search)
+
+Sign in to the Management Portal using the initial Docker credentials:
+
+```text
+Username: _SYSTEM
+Password: ISCDEMO
+```
+
+Go to:
+
+```text
+System Administration
+→ Security
+→ Users
+→ Create New User
+```
+
+Create the local demo user with:
+
+```text
+Username: irisuser
+Password: irisuser
+Enabled: Yes
+```
+
+For the simplest local demo setup, assign the `%All` role to `irisuser`. This gives the account sufficient access to import and compile classes, run the interoperability production, execute the vector SQL, and authenticate to the custom REST endpoint.
+
+`irisuser` / `irisuser` is intentionally a local development credential. Change it and replace `%All` with least-privilege roles before using the project outside the isolated demo environment.
+
+### 3.2 Import the IRIS Source from `src/`
+
+The `src/` folder contains the exported ObjectScript classes, message classes, business services, business processes, business operations, REST dispatch class, and production definition required by the IRIS side of the demo.
+
+Copy or paste the contents of `src/` into the `DEMO` namespace of the running IRIS instance.
+
+Using the Management Portal:
+
+```text
+System Explorer
+→ Classes
+→ Change namespace to DEMO
+→ Import
+```
+
+Select all exported `.cls` files under `src/`, import them, and compile all imported classes. The imported source includes the vector components, such as:
+
+```text
+demodb.bo.OpenAIVectorize
+demodb.bp.VectorSearchOperation
+demodb.bs.VectorSearchService
+demodb.rest.VectorSearchAPI
+demodb.msg.VectorSearchRequest
+demodb.msg.VectorSearchResponse
+demodb.msg.VectorSearchResult
+```
+
+It also includes the FHIR interoperability production and its supporting classes. After importing an updated class, restart the affected production component or restart the production so that the latest compiled version is used.
+
+### 3.3 Create the OpenAI SSL/TLS Configuration
+
+The IRIS OpenAI embedding class requires an outbound SSL/TLS configuration.
+
+Go to:
+
+```text
+System Administration
+→ Security
+→ SSL/TLS Configurations
+→ Create New Configuration
+```
+
+Create a client configuration named:
+
+```text
+llm_ssl
+```
+
+Enable the configuration and use the container's trusted CA settings for outbound HTTPS. The embedding configuration created in the next step refers to this name exactly.
+
+### 3.4 Run the IRIS Vector Search SQL Setup
+
+Open:
+
+```text
+System Explorer
+→ SQL
+```
+
+Select the `DEMO` namespace. Run the statements below in order. Run the `CREATE` statements once; skip an object if it already exists.
+
+First, check whether the OpenAI embedding configuration already exists:
+
+```sql
+SELECT Name, EmbeddingClass, VectorLength, Description
+FROM %Embedding.Config
+WHERE Name = 'ambient-fhir-openai';
+```
+
+When no row is returned, insert the configuration below. Replace `YOUR_OPENAI_API_KEY` locally before executing it. Never commit the completed statement, the API key, or an export of this configuration.
+
+```sql
+INSERT INTO %Embedding.Config (
+    Name,
+    Configuration,
+    EmbeddingClass,
+    VectorLength,
+    Description
+)
+VALUES (
+    'ambient-fhir-openai',
+    '{"apiKey":"YOUR_OPENAI_API_KEY","sslConfig":"llm_ssl","modelName":"text-embedding-3-small"}',
+    '%Embedding.OpenAI',
+    1536,
+    'OpenAI embeddings for the Ambient FHIR demo'
+);
+```
+
+When the configuration already exists and only its local credentials or settings need to be replaced, run this instead of the `INSERT`:
+
+```sql
+UPDATE %Embedding.Config
+SET Configuration = '{"apiKey":"YOUR_OPENAI_API_KEY","sslConfig":"llm_ssl","modelName":"text-embedding-3-small"}',
+    EmbeddingClass = '%Embedding.OpenAI',
+    VectorLength = 1536,
+    Description = 'OpenAI embeddings for the Ambient FHIR demo'
+WHERE Name = 'ambient-fhir-openai';
+```
+
+Create the application schema:
+
+```sql
+CREATE SCHEMA AmbientFHIR;
+```
+
+Create the vector store:
+
+```sql
+CREATE TABLE AmbientFHIR.VectorStore (
+    VectorId BIGINT IDENTITY PRIMARY KEY,
+    PatientId VARCHAR(256),
+    ResourceType VARCHAR(64) NOT NULL,
+    ResourceId VARCHAR(256) NOT NULL,
+    VersionId VARCHAR(128),
+    SearchText VARCHAR(32000) NOT NULL,
+    SearchEmbedding EMBEDDING('ambient-fhir-openai', 'SearchText'),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (ResourceType, ResourceId)
+);
+```
+
+Create indexes for the patient-scoped lookup and resource filtering used by the demo:
+
+```sql
+CREATE INDEX IX_VectorStore_Patient
+ON AmbientFHIR.VectorStore (PatientId);
+```
+
+```sql
+CREATE INDEX IX_VectorStore_PatientType
+ON AmbientFHIR.VectorStore (PatientId, ResourceType);
+```
+
+Grant the local demo user explicit access to the table and embedding function:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON AmbientFHIR.VectorStore
+TO irisuser;
+```
+
+```sql
+GRANT %USE_EMBEDDING TO irisuser;
+```
+
+The explicit grants are useful if the broad `%All` role is later removed from the local user.
+
+Verify that IRIS can generate an embedding:
+
+```sql
+SELECT EMBEDDING(
+    'The patient reports a penicillin allergy with hives and a red rash.',
+    'ambient-fhir-openai'
+) AS QueryEmbedding;
+```
+
+Verify the vector table:
+
+```sql
+SELECT TOP 10
+    VectorId,
+    PatientId,
+    ResourceType,
+    ResourceId,
+    VersionId,
+    SearchText,
+    CreatedAt,
+    UpdatedAt
+FROM AmbientFHIR.VectorStore
+ORDER BY VectorId DESC;
+```
+
+After at least one supported FHIR resource has been written and indexed, test patient-scoped similarity search. Replace the patient reference with an indexed patient:
+
+```sql
+SELECT TOP 5
+    ResourceType,
+    ResourceId,
+    VersionId,
+    SearchText,
+    VECTOR_COSINE(
+        SearchEmbedding,
+        EMBEDDING(
+            'The patient reports a penicillin allergy with hives and a red rash.',
+            'ambient-fhir-openai'
+        )
+    ) AS Similarity
+FROM AmbientFHIR.VectorStore
+WHERE PatientId = 'Patient/P20260500002'
+ORDER BY Similarity DESC;
+```
+
+### 3.5 Configure and Start the IRIS Production
+
+Go to:
+
+```text
+Interoperability
+→ Configure
+→ Production
+```
+
+Open the production imported from `src/`, enable the required components, and start the production.
+
+The write-time flow should include the FHIR service, repository operation, and OpenAI vectorisation operation. Bundle transactions may be saved to the FHIR repository without being vectorised for this demo.
+
+The retrieval-time flow should include:
+
+```text
+Vector Search API Service
+→ demodb.bp.VectorSearchOperation
+→ patient-scoped SQL vector search
+```
+
+The configured adapterless Business Service item must be named exactly:
+
+```text
+Vector Search API Service
+```
+
+The REST dispatch class uses this production item name when it invokes the vector-search workflow.
+
+### 3.6 Create the IRIS Vector Search Web Application
+
+Go to:
+
+```text
+System Administration
+→ Security
+→ Applications
+→ Web Applications
+→ Create New Web Application
+```
+
+Configure:
+
+```text
+Name: /csp/demo/ambient-vector
+Namespace: DEMO
+Dispatch Class: demodb.rest.VectorSearchAPI
+Enabled: Yes
+Authentication: Password
+```
+
+The `/csp` prefix is required by the included Docker Web Gateway configuration.
+
+Test the dispatch route:
+
+```bash
+curl -u irisuser:irisuser http://localhost:8080/csp/demo/ambient-vector/ping
+```
+
+Test patient-scoped vector search:
+
+```bash
+curl -u irisuser:irisuser \
+  -X POST \
+  http://localhost:8080/csp/demo/ambient-vector/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patientReference": "Patient/P20260500002",
+    "query": "The patient reports a penicillin allergy with hives and a red rash.",
+    "topK": 5
+  }'
+```
+
+On Windows Command Prompt, the equivalent request is:
+
+```bat
+curl -u irisuser:irisuser ^
+  -X POST ^
+  http://localhost:8080/csp/demo/ambient-vector/search ^
+  -H "Content-Type: application/json" ^
+  -d "{\"patientReference\":\"Patient/P20260500002\",\"query\":\"The patient reports a penicillin allergy with hives and a red rash.\",\"topK\":5}"
+```
+
+A successful response has this shape:
+
+```json
+{
+  "patientReference": "Patient/P20260500002",
+  "query": "The patient reports a penicillin allergy with hives and a red rash.",
+  "resultCount": 1,
+  "results": [
+    {
+      "resourceType": "AllergyIntolerance",
+      "resourceId": "example-id",
+      "versionId": "1",
+      "searchText": "Recorded penicillin allergy with hives and a red rash.",
+      "similarity": 0.88
+    }
+  ]
+}
+```
+
+A patient with no indexed matches should return `resultCount: 0` and an empty `results` array rather than fail.
 
 ## 4. Verify the FHIR Endpoint
 
@@ -281,6 +617,13 @@ DEFAULT_PRACTITIONER_IDENTIFIER=nurse-1
 FHIR_TIMEOUT_SECONDS=10
 ENABLE_FHIR_VALIDATE=true
 
+# IRIS vector search
+IRIS_VECTOR_SEARCH_URL=http://localhost:8080/csp/demo/ambient-vector/search
+IRIS_VECTOR_SEARCH_USERNAME=irisuser
+IRIS_VECTOR_SEARCH_PASSWORD=irisuser
+IRIS_VECTOR_SEARCH_TOP_K=5
+IRIS_VECTOR_SEARCH_TIMEOUT_SECONDS=5
+
 # Frontend and backend URLs
 APP_BASE_URL=http://localhost:8000
 FRONTEND_BASE_URL=http://localhost:5173
@@ -313,6 +656,8 @@ Paste the result into `AUTH0_SECRET`.
 
 Do not commit `backend/.env`.
 
+The backend `OPENAI_API_KEY` is used by FastAPI for the enabled AI extraction, recommendation, and reconciliation features. The separate OpenAI key stored locally in IRIS `%Embedding.Config` is used by `%Embedding.OpenAI` for resource indexing and vector-search query embeddings. The two values may be the same development key, but neither should be committed.
+
 ### OAuth versus Basic Authentication
 
 When a user signs in, the backend obtains the Auth0 access token and uses it for FHIR requests.
@@ -325,6 +670,15 @@ FHIR_PASSWORD=
 ```
 
 Only populate them for local Basic-auth testing.
+
+The vector-search endpoint uses separate local Basic authentication settings:
+
+```env
+IRIS_VECTOR_SEARCH_USERNAME=irisuser
+IRIS_VECTOR_SEARCH_PASSWORD=irisuser
+```
+
+These credentials are sent only to the custom IRIS vector-search web application. The backend does not forward the user's FHIR bearer token to that endpoint.
 
 ## 8. Install and Run the Backend
 
@@ -407,6 +761,8 @@ LLM_RECONCILIATION_SEMANTIC_COMPARE_ENABLED=false
 
 Restart the backend after changing environment variables.
 
+When semantic reconciliation and the IRIS vector-search settings are enabled, the backend deterministically converts the reviewed Questionnaire responses and proposed clinical data into a patient-scoped search query. IRIS returns top-K indexed matches as supporting evidence. Vector retrieval is fail-open: an IRIS timeout, HTTP error, invalid response, or zero-result response does not prevent the existing FHIR-based reconciliation from completing.
+
 ## 11. Verify the Complete Flow
 
 Use this checklist:
@@ -423,6 +779,9 @@ Use this checklist:
 10. Extraction produces reviewable answers.
 11. Reconciliation checks existing patient records.
 12. Saving creates reviewed FHIR resources in IRIS.
+13. Supported single-resource FHIR writes create or update rows in `AmbientFHIR.VectorStore`.
+14. The vector-search endpoint returns patient-scoped top-K matches.
+15. Reconciliation displays vector evidence when available and still completes with FHIR data when vector search fails.
 
 ## Troubleshooting
 
@@ -511,6 +870,69 @@ OPENAI_API_KEY=...
 
 and enable the relevant feature flags. Restart the backend afterward.
 
+### Vector-search endpoint returns Apache 404
+
+Use the complete Web Gateway application path:
+
+```text
+http://localhost:8080/csp/demo/ambient-vector/search
+```
+
+Calling `/ambient-vector/search` without the `/csp/demo` prefix is not routed by the included Apache/Web Gateway configuration.
+
+### Vector search returns HTTP 500
+
+Check:
+
+```text
+Interoperability
+→ View
+→ Event Log
+```
+
+and:
+
+```text
+Interoperability
+→ View
+→ Messages
+```
+
+Common causes include:
+
+- the production or `Vector Search API Service` is not enabled;
+- `ambient-fhir-openai` is missing or contains an invalid API key;
+- the `llm_ssl` SSL/TLS configuration is missing;
+- the vector table was not created in the `DEMO` namespace;
+- `VectorSearchRequest.Query`, `VectorSearchResponse.Query`, or `VectorSearchResult.SearchText` still has the default `MAXLEN=50` instead of the larger lengths defined in `src/`;
+- the OpenAI embedding request timed out or was rejected.
+
+### Vector search returns no matches
+
+Confirm that the patient reference matches the stored format exactly:
+
+```sql
+SELECT DISTINCT PatientId
+FROM AmbientFHIR.VectorStore;
+```
+
+The demo expects values such as:
+
+```text
+Patient/P20260500002
+```
+
+Then check that the patient has indexed rows:
+
+```sql
+SELECT PatientId, COUNT(*) AS ResourceCount
+FROM AmbientFHIR.VectorStore
+WHERE PatientId = 'Patient/P20260500002'
+GROUP BY PatientId;
+```
+
+A valid vector request with no indexed resources should return HTTP `200` with `resultCount: 0`.
+
 ## Security Notes
 
 This repository is a local development and demonstration environment.
@@ -520,6 +942,8 @@ Before production use:
 - replace broad FHIR scopes with least-privilege scopes;
 - use trusted TLS certificates;
 - remove development credentials;
+- replace the local `irisuser` / `irisuser` credential and remove its `%All` role;
+- never commit the OpenAI key stored in `%Embedding.Config` or an IRIS export containing it;
 - store secrets in a secret manager;
 - disable Basic authentication;
 - avoid exposing raw FHIR server URLs;
